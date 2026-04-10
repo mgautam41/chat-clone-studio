@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, MoreHorizontal, Paperclip, Image, FileText, Send, Play, Pause } from "lucide-react";
+import { ArrowLeft, Paperclip, Image, FileText, Send, Play, Pause, Phone, Video } from "lucide-react";
 import { users, conversations, currentUser } from "@/data/chatData";
 import type { Message } from "@/data/chatData";
 
@@ -29,7 +29,6 @@ const ChatPage = () => {
     setMessages(prev => [...prev, newMsg]);
     setInput("");
 
-    // Fake reply after 1.5s
     setTimeout(() => {
       const replies = [
         "Got it, thanks! 👍",
@@ -49,7 +48,7 @@ const ChatPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col max-w-lg mx-auto">
+    <div className="min-h-screen bg-background flex flex-col max-w-[430px] mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 bg-card border-b border-border sticky top-0 z-10">
         <button onClick={() => navigate(-1)}>
@@ -60,7 +59,12 @@ const ChatPage = () => {
           {chatUser.online && <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-success rounded-full border-2 border-card" />}
         </div>
         <span className="font-semibold text-foreground flex-1">{chatUser.name}</span>
-        <MoreHorizontal size={22} className="text-foreground" />
+        <button className="text-foreground p-1.5">
+          <Phone size={20} />
+        </button>
+        <button className="text-foreground p-1.5">
+          <Video size={20} />
+        </button>
       </div>
 
       {/* Messages */}
@@ -69,14 +73,12 @@ const ChatPage = () => {
           const isMe = msg.senderId === currentUser.id;
           return (
             <div key={msg.id}>
-              {/* Sender label */}
               {!isMe && (
                 <p className="text-xs font-medium text-foreground mb-1">{chatUser.name.split(" ")[0]}</p>
               )}
 
               <div className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
                 <div className="max-w-[80%]">
-                  {/* Reply */}
                   {msg.replyTo && (
                     <div className="mb-1 border-l-2 border-border pl-2 text-xs text-muted-foreground bg-secondary rounded-md p-2">
                       <span className="font-medium">Replying :</span>
@@ -84,7 +86,6 @@ const ChatPage = () => {
                     </div>
                   )}
 
-                  {/* Voice note */}
                   {msg.voiceNote ? (
                     <div className={`rounded-2xl px-4 py-3 flex items-center gap-3 ${isMe ? "bg-chat-outgoing border border-border" : "bg-chat-incoming"}`}>
                       <button onClick={() => setPlayingVoice(playingVoice === msg.id ? null : msg.id)}>
@@ -102,7 +103,6 @@ const ChatPage = () => {
                       <span className="text-xs text-muted-foreground">1X</span>
                     </div>
                   ) : (
-                    /* Text bubble */
                     <div className={`rounded-2xl px-4 py-2.5 ${isMe ? "bg-chat-outgoing border border-border" : "bg-chat-incoming"}`}>
                       <p className="text-sm text-foreground leading-relaxed">{msg.text}</p>
                       {msg.image && (
@@ -111,7 +111,6 @@ const ChatPage = () => {
                     </div>
                   )}
 
-                  {/* Reactions */}
                   {msg.reactions && (
                     <div className="flex gap-1 mt-1">
                       {msg.reactions.map((r, i) => (
@@ -120,12 +119,10 @@ const ChatPage = () => {
                     </div>
                   )}
 
-                  {/* Actions for non-me messages */}
                   {!isMe && msg.text && !msg.voiceNote && (
                     <div className="flex items-center gap-2 mt-1">
                       <button className="text-muted-foreground hover:text-foreground"><Paperclip size={14} /></button>
                       <button className="text-muted-foreground hover:text-foreground"><FileText size={14} /></button>
-                      <button className="text-muted-foreground hover:text-foreground"><MoreHorizontal size={14} /></button>
                     </div>
                   )}
 
@@ -150,7 +147,6 @@ const ChatPage = () => {
           />
           <button className="text-muted-foreground"><Paperclip size={18} /></button>
           <button className="text-muted-foreground"><Image size={18} /></button>
-          <button className="text-muted-foreground"><FileText size={18} /></button>
           <button
             onClick={sendMessage}
             className="bg-primary text-primary-foreground w-8 h-8 rounded-full flex items-center justify-center ml-1"
