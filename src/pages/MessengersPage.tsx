@@ -1,4 +1,4 @@
-import { Search, MoreHorizontal, Heart, MessageSquare as MsgIcon, SlidersHorizontal } from "lucide-react";
+import { Search, Heart, MessageSquare as MsgIcon, SlidersHorizontal } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { users, latestMessages, threads } from "@/data/chatData";
 
@@ -6,7 +6,7 @@ const MessengersPage = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-background pb-20 max-w-lg mx-auto">
+    <div className="min-h-screen bg-background pb-4 max-w-[430px] mx-auto">
       {/* Header */}
       <div className="px-4 pt-4 pb-2">
         <h1 className="text-xl font-bold text-foreground">Messengers</h1>
@@ -55,7 +55,6 @@ const MessengersPage = () => {
             <span className="text-sm">💬</span>
             <span className="font-semibold text-sm text-foreground">Recent Thread</span>
           </div>
-          <MoreHorizontal size={18} className="text-muted-foreground" />
         </div>
         <div className="overflow-x-auto">
           <div className="flex gap-3">
@@ -104,7 +103,6 @@ const MessengersPage = () => {
             <span className="text-sm">💬</span>
             <span className="font-semibold text-sm text-foreground">Latest Message</span>
           </div>
-          <MoreHorizontal size={18} className="text-muted-foreground" />
         </div>
         <div className="space-y-1">
           {latestMessages.map((msg) => {
