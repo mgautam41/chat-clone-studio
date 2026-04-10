@@ -5,6 +5,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import MessengersPage from "./pages/MessengersPage";
 import ChatPage from "./pages/ChatPage";
+import SearchPage from "./pages/SearchPage";
+import ActivityPage from "./pages/ActivityPage";
+import ProfilePage from "./pages/ProfilePage";
+import BottomNav from "./components/BottomNav";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -19,8 +23,12 @@ const App = () => (
           <Route path="/" element={<Navigate to="/messengers" replace />} />
           <Route path="/messengers" element={<MessengersPage />} />
           <Route path="/chat/:userId" element={<ChatPage />} />
+          <Route path="/search" element={<SearchPage />} />
+          <Route path="/activity" element={<ActivityPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
+        <BottomNav />
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
