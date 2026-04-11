@@ -4,9 +4,10 @@ import { users, latestMessages, threads } from "@/data/chatData";
 
 const MessengersPage = () => {
   const navigate = useNavigate();
+  const onlineUsers = users.filter((u) => u.online);
 
   return (
-    <div className="min-h-screen bg-background pb-4 max-w-[430px] mx-auto">
+    <div className="min-h-screen bg-background pb-20 max-w-[430px] mx-auto">
       {/* Header */}
       <div className="px-4 pt-4 pb-2">
         <h1 className="text-xl font-bold text-foreground">Messengers</h1>
@@ -21,16 +22,10 @@ const MessengersPage = () => {
         </div>
       </div>
 
-      {/* People in conversation */}
+      {/* Active users horizontal */}
       <div className="px-4 mt-4">
-        <div className="flex items-center gap-4 overflow-x-auto pb-2">
-          <div className="flex flex-col items-center gap-1 min-w-[60px]">
-            <div className="w-12 h-12 rounded-full border-2 border-success flex items-center justify-center bg-secondary">
-              <span className="text-xs text-muted-foreground font-medium">2</span>
-            </div>
-            <span className="text-[9px] text-muted-foreground text-center leading-tight">people in conversation</span>
-          </div>
-          {users.slice(3, 7).map((user) => (
+        <div className="flex items-center gap-3 overflow-x-auto pb-2">
+          {onlineUsers.map((user) => (
             <button
               key={user.id}
               onClick={() => navigate(`/chat/${user.id}`)}
@@ -38,10 +33,10 @@ const MessengersPage = () => {
             >
               <div className="relative">
                 <img src={user.avatar} className="w-12 h-12 rounded-full object-cover" alt="" />
-                {user.online && <div className="absolute bottom-0 right-0 w-3 h-3 bg-success rounded-full border-2 border-card" />}
+                <div className="absolute bottom-0 right-0 w-3 h-3 bg-success rounded-full border-2 border-card" />
               </div>
               <span className="text-[10px] text-foreground font-medium text-center leading-tight truncate w-[60px]">
-                {user.name.split(" ")[0]} {user.name.split(" ")[1]?.[0] ? user.name.split(" ").slice(1).join(" ") : ""}
+                {user.name.split(" ")[0]}
               </span>
             </button>
           ))}
@@ -59,7 +54,7 @@ const MessengersPage = () => {
         <div className="overflow-x-auto">
           <div className="flex gap-3">
             {threads.map((thread) => {
-              const user = users.find(u => u.id === thread.userId);
+              const user = users.find((u) => u.id === thread.userId);
               return (
                 <div key={thread.id} className="bg-card rounded-xl p-4 border border-border min-w-[280px]">
                   <div className="flex items-center gap-2 mb-2">
@@ -96,7 +91,7 @@ const MessengersPage = () => {
         </div>
       </div>
 
-      {/* Latest Message */}
+      {/* Latest Messages */}
       <div className="px-4 mt-5">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
@@ -106,7 +101,7 @@ const MessengersPage = () => {
         </div>
         <div className="space-y-1">
           {latestMessages.map((msg) => {
-            const user = users.find(u => u.id === msg.userId);
+            const user = users.find((u) => u.id === msg.userId);
             if (!user) return null;
             return (
               <button
@@ -116,7 +111,9 @@ const MessengersPage = () => {
               >
                 <div className="relative">
                   <img src={user.avatar} className="w-10 h-10 rounded-full object-cover" alt="" />
-                  {user.online && <div className="absolute bottom-0 right-0 w-3 h-3 bg-success rounded-full border-2 border-card" />}
+                  {user.online && (
+                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-success rounded-full border-2 border-card" />
+                  )}
                 </div>
                 <div className="flex-1 text-left">
                   <p className="font-medium text-sm text-foreground">{user.name}</p>
