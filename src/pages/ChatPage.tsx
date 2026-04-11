@@ -11,6 +11,7 @@ const ChatPage = () => {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>(conversations["1"] || []);
   const [playingVoice, setPlayingVoice] = useState<string | null>(null);
+  const [isTyping, setIsTyping] = useState(false);
 
   const chatUser = users.find(u => u.id === userId) || users[1];
 
@@ -29,7 +30,10 @@ const ChatPage = () => {
     setMessages(prev => [...prev, newMsg]);
     setInput("");
 
+    // Show typing indicator then reply
+    setIsTyping(true);
     setTimeout(() => {
+      setIsTyping(false);
       const replies = [
         "Got it, thanks! 👍",
         "Sure, I'll look into that.",
@@ -44,7 +48,7 @@ const ChatPage = () => {
         timestamp: new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
       };
       setMessages(prev => [...prev, reply]);
-    }, 1500);
+    }, 2000);
   };
 
   return (
@@ -132,6 +136,16 @@ const ChatPage = () => {
             </div>
           );
         })}
+        {/* Typing indicator */}
+        {isTyping && (
+          <div className="flex justify-start">
+            <div className="bg-chat-incoming rounded-2xl px-4 py-3 flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-muted-foreground animate-typing-bounce" style={{ animationDelay: "0ms" }} />
+              <div className="w-2 h-2 rounded-full bg-muted-foreground animate-typing-bounce" style={{ animationDelay: "200ms" }} />
+              <div className="w-2 h-2 rounded-full bg-muted-foreground animate-typing-bounce" style={{ animationDelay: "400ms" }} />
+            </div>
+          </div>
+        )}
         <div ref={bottomRef} />
       </div>
 

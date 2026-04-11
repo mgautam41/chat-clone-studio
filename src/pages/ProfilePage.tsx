@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Users, ChevronRight, ArrowLeft } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Users, ChevronRight, ArrowLeft, Sun, Moon } from "lucide-react";
 import { currentUser, users } from "@/data/chatData";
 import { useNavigate } from "react-router-dom";
 
@@ -8,6 +8,15 @@ const connectedFriends = [users[1], users[3], users[5], users[7]];
 const ProfilePage = () => {
   const navigate = useNavigate();
   const [showFriends, setShowFriends] = useState(false);
+  const [dark, setDark] = useState(() => document.documentElement.classList.contains("dark"));
+
+  useEffect(() => {
+    if (dark) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [dark]);
 
   if (showFriends) {
     return (
@@ -45,8 +54,14 @@ const ProfilePage = () => {
 
   return (
     <div className="min-h-screen bg-background pb-20 max-w-[430px] mx-auto">
-      <div className="px-4 pt-4 pb-2">
+      <div className="px-4 pt-4 pb-2 flex items-center justify-between">
         <h1 className="text-xl font-bold text-foreground">My Profile</h1>
+        <button
+          onClick={() => setDark(!dark)}
+          className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center active:scale-95 transition-transform"
+        >
+          {dark ? <Sun size={18} className="text-foreground" /> : <Moon size={18} className="text-foreground" />}
+        </button>
       </div>
 
       <div className="px-4 mt-6 flex flex-col items-center text-center gap-2">
@@ -55,7 +70,7 @@ const ProfilePage = () => {
         <p className="text-sm text-muted-foreground">Online</p>
       </div>
 
-      <div className="px-4 mt-8">
+      <div className="px-4 mt-8 space-y-3">
         <button
           onClick={() => setShowFriends(true)}
           className="w-full flex items-center gap-3 bg-card border border-border rounded-xl p-4 active:scale-[0.98] transition-transform"
