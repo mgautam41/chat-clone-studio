@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import MessengersPage from "./pages/MessengersPage";
 import ChatPage from "./pages/ChatPage";
 import SearchPage from "./pages/SearchPage";
+import UserProfilePage from "./pages/UserProfilePage";
 import ActivityPage from "./pages/ActivityPage";
 import ProfilePage from "./pages/ProfilePage";
 import BottomNav from "./components/BottomNav";
@@ -24,6 +25,7 @@ const App = () => (
           <Route path="/messengers" element={<MessengersPage />} />
           <Route path="/chat/:userId" element={<ChatPage />} />
           <Route path="/search" element={<SearchPage />} />
+          <Route path="/user/:userId" element={<UserProfilePage />} />
           <Route path="/activity" element={<ActivityPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="*" element={<NotFound />} />
