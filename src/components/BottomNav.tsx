@@ -1,8 +1,8 @@
 import { Home, Search, Bell, User } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { gsap } from "gsap";
 
-// Watches the .dark class on <html> so we react to theme changes in real time
 function useIsDark() {
   const [isDark, setIsDark] = useState(() =>
     document.documentElement.classList.contains("dark")
@@ -34,9 +34,10 @@ const BottomNav = () => {
   const navigate = useNavigate();
   const isDark = useIsDark();
 
-  if (location.pathname.startsWith("/chat/")) return null;
+  const pillRef = useRef<HTMLDivElement>(null);
+  const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const slidingBgRef = useRef<HTMLDivElement>(null);
 
-  // ── Theme tokens ──────────────────────────────────────────────
   const pill = isDark
     ? {
       background: "rgba(20, 20, 20, 0.65)",
@@ -58,8 +59,6 @@ const BottomNav = () => {
       activeBg: "rgba(255,255,255,0.18)",
       activeBoxShadow:
         "0 2px 12px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.15)",
-      hoverColor: "rgba(255,255,255,0.80)",
-      hoverBg: "rgba(255,255,255,0.07)",
     }
     : {
       activeColor: "rgba(0,0,0,0.90)",
@@ -67,10 +66,53 @@ const BottomNav = () => {
       activeBg: "rgba(0,0,0,0.07)",
       activeBoxShadow:
         "0 2px 10px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.70)",
-      hoverColor: "rgba(0,0,0,0.65)",
-      hoverBg: "rgba(0,0,0,0.04)",
     };
-  // ─────────────────────────────────────────────────────────────
+
+  // ── Mount entrance ────────────────────────────────────────────
+  useEffect(() => {
+    if (!pillRef.current) return;
+    gsap.fromTo(
+      pillRef.current,
+      { y: 20, opacity: 0 },
+      { y: 0, opacity: 1, duration: 0.5, ease: "power3.out", delay: 0.1 }
+    );
+  }, []);
+
+  // ── Slide active bg to current tab ───────────────────────────
+  useEffect(() => {
+    const activeIndex = tabs.findIndex((t) => t.path === location.pathname);
+    const btn = buttonRefs.current[activeIndex];
+    const container = pillRef.current;
+    const bg = slidingBgRef.current;
+    if (!btn || !container || !bg) return;
+
+    const btnRect = btn.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+
+    const left = btnRect.left - containerRect.left;
+    const width = btnRect.width;
+
+    // On first render just snap, then slide from then on
+    const isFirst = gsap.getProperty(bg, "opacity") === 0;
+
+    if (isFirst) {
+      gsap.set(bg, { left, width, opacity: 1 });
+    } else {
+      gsap.to(bg, {
+        left,
+        width,
+        duration: 0.35,
+        ease: "power2.inOut",
+      });
+    }
+  }, [location.pathname]);
+
+  if (
+    location.pathname.startsWith("/chat/") ||
+    location.pathname === "/welcome" ||
+    location.pathname === "/login"
+  ) return null;
+
 
   return (
     <div
@@ -83,6 +125,7 @@ const BottomNav = () => {
       }}
     >
       <div
+        ref={pillRef}
         style={{
           display: "flex",
           alignItems: "center",
@@ -94,46 +137,48 @@ const BottomNav = () => {
           backdropFilter: "blur(24px) saturate(180%)",
           WebkitBackdropFilter: "blur(24px) saturate(180%)",
           boxShadow: pill.boxShadow,
+          position: "relative",
         }}
       >
-        {tabs.map((tab) => {
+        {/* Active sliding background */}
+        <div
+          ref={slidingBgRef}
+          style={{
+            position: "absolute",
+            top: "8px",
+            height: "44px",
+            borderRadius: "9999px",
+            background: token.activeBg,
+            boxShadow: token.activeBoxShadow,
+            opacity: 0,
+            pointerEvents: "none",
+          }}
+        />
+
+        {tabs.map((tab, i) => {
           const isActive = location.pathname === tab.path;
           return (
             <button
               key={tab.label}
+              ref={(el) => { buttonRefs.current[i] = el; }}
               onClick={() => navigate(tab.path)}
               title={tab.label}
               style={{
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                width: isActive ? "56px" : "44px",
+                width: "44px",
                 height: "44px",
                 borderRadius: "9999px",
                 border: "none",
                 cursor: "pointer",
-                transition: "all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)",
-                background: isActive ? token.activeBg : "transparent",
+                background: "transparent",
                 color: isActive ? token.activeColor : token.inactiveColor,
                 outline: "none",
-                boxShadow: isActive ? token.activeBoxShadow : "none",
                 flexShrink: 0,
-              }}
-              onMouseEnter={(e) => {
-                if (!isActive) {
-                  (e.currentTarget as HTMLButtonElement).style.color =
-                    token.hoverColor;
-                  (e.currentTarget as HTMLButtonElement).style.background =
-                    token.hoverBg;
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isActive) {
-                  (e.currentTarget as HTMLButtonElement).style.color =
-                    token.inactiveColor;
-                  (e.currentTarget as HTMLButtonElement).style.background =
-                    "transparent";
-                }
+                position: "relative",
+                zIndex: 1,
+                transition: "color 0.25s ease",
               }}
             >
               <tab.icon size={20} strokeWidth={isActive ? 2.2 : 1.6} />

@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HashRouter, Route, Routes, Navigate } from "react-router-dom";
+import { getAuthSession, RequireAuth, GuestOnly } from "./lib/auth";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -11,6 +12,16 @@ import ActivityPage from "./pages/ActivityPage";
 import ProfilePage from "./pages/ProfilePage";
 import BottomNav from "./components/BottomNav";
 import NotFound from "./pages/NotFound";
+import WelcomePage from "./pages/WelcomePage";
+import LoginPage from "./pages/LoginPage";
+
+
+
+function RootRedirect() {
+  return getAuthSession()
+    ? <Navigate to="/messengers" replace />
+    : <Navigate to="/welcome" replace />;
+}
 
 const queryClient = new QueryClient();
 
@@ -21,13 +32,21 @@ const App = () => (
       <Sonner />
       <HashRouter>
         <Routes>
-          <Route path="/" element={<Navigate to="/messengers" replace />} />
-          <Route path="/messengers" element={<MessengersPage />} />
-          <Route path="/chat/:userId" element={<ChatPage />} />
-          <Route path="/search" element={<SearchPage />} />
-          <Route path="/user/:userId" element={<UserProfilePage />} />
-          <Route path="/activity" element={<ActivityPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
+          {/* Guest-only: redirect logged-in users to /messengers */}
+          <Route path="/welcome" element={<GuestOnly><WelcomePage /></GuestOnly>} />
+          <Route path="/login"   element={<GuestOnly><LoginPage /></GuestOnly>} />
+
+          {/* Root redirect — welcome for guests, messages for authed */}
+          <Route path="/" element={<RootRedirect />} />
+
+
+          {/* Protected routes */}
+          <Route path="/messengers" element={<RequireAuth><MessengersPage /></RequireAuth>} />
+          <Route path="/chat/:userId" element={<RequireAuth><ChatPage /></RequireAuth>} />
+          <Route path="/search" element={<RequireAuth><SearchPage /></RequireAuth>} />
+          <Route path="/user/:userId" element={<RequireAuth><UserProfilePage /></RequireAuth>} />
+          <Route path="/activity" element={<RequireAuth><ActivityPage /></RequireAuth>} />
+          <Route path="/profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
         <BottomNav />

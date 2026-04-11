@@ -37,6 +37,9 @@ export const latestMessages = [
   { userId: "2", text: "Design updates! take a look", time: "9.00 AM", unread: 1 },
   { userId: "3", text: "📎 Photo", time: "7.12 AM", unread: 2 },
   { userId: "8", text: "I reviewed yesterday's dashb...", time: "4.22 AM", unread: 1 },
+  { userId: "2", text: "Design updates! take a look", time: "9.00 AM", unread: 1 },
+  { userId: "3", text: "📎 Photo", time: "7.12 AM", unread: 2 },
+  { userId: "8", text: "I reviewed yesterday's dashb...", time: "4.22 AM", unread: 1 },
 ];
 
 export const threads = [
