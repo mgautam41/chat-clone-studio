@@ -1,12 +1,49 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Paperclip, Image, FileText, Send, Play, Pause, Phone, Video } from "lucide-react";
+import { ArrowLeft, Paperclip, Image as ImageIcon, FileText, Play, Pause, Phone, Video, MoreVertical } from "lucide-react";
+import { FiPlus, FiCamera, FiSend } from "react-icons/fi";
+import { PiSticker } from "react-icons/pi";
 import { users, conversations, currentUser } from "@/data/chatData";
 import type { Message } from "@/data/chatData";
+
+function useIsDark() {
+  const [isDark, setIsDark] = useState(() =>
+    document.documentElement.classList.contains("dark")
+  );
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDark(document.documentElement.classList.contains("dark"));
+    });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+    return () => observer.disconnect();
+  }, []);
+
+  return isDark;
+}
 
 const ChatPage = () => {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
+  const isDark = useIsDark();
+
+  const pill = isDark
+    ? {
+      background: "rgba(20, 20, 20, 0.65)",
+      border: "1px solid rgba(255,255,255,0.10)",
+      boxShadow:
+        "0 8px 32px rgba(0,0,0,0.45), 0 1px 0 rgba(255,255,255,0.06) inset, 0 -1px 0 rgba(0,0,0,0.3) inset",
+    }
+    : {
+      background: "rgba(255, 255, 255, 0.72)",
+      border: "1px solid rgba(0,0,0,0.08)",
+      boxShadow:
+        "0 4px 24px rgba(0,0,0,0.10), 0 1px 0 rgba(255,255,255,0.9) inset, 0 -1px 0 rgba(0,0,0,0.04) inset",
+    };
+
   const bottomRef = useRef<HTMLDivElement>(null);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>(conversations["1"] || []);
@@ -53,22 +90,35 @@ const ChatPage = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col max-w-[430px] mx-auto">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 bg-card border-b border-border sticky top-0 z-10">
-        <button onClick={() => navigate(-1)}>
-          <ArrowLeft size={22} className="text-foreground" />
-        </button>
-        <div className="relative">
-          <img src={chatUser.avatar} className="w-9 h-9 rounded-full object-cover" alt="" />
-          {chatUser.online && <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-success rounded-full border-2 border-card" />}
+        {/* Header */}
+        <div className="flex items-center gap-3 px-4 py-3 backdrop-blur-md bg-background/50 sticky top-0 z-10 pb-4 border-none">
+          <button onClick={() => navigate(-1)} className="text-foreground hover:opacity-80 transition-opacity">
+            <ArrowLeft size={22} strokeWidth={1.5} />
+          </button>
+          <button 
+            onClick={() => navigate(`/chat/${chatUser.id}/profile`)} 
+            className="flex-1 min-w-0 flex items-center gap-3 text-left hover:opacity-80 transition-opacity"
+          >
+            <div className="relative shrink-0">
+              <img src={chatUser.avatar} className="w-10 h-10 rounded-full object-cover shadow-sm" alt="" />
+              {chatUser.online && <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-background" />}
+            </div>
+            <div className="flex flex-col flex-1 overflow-hidden leading-tight justify-center mt-0.5">
+              <span className="font-semibold text-foreground text-[15px] truncate">{chatUser.name}</span>
+              <span className="text-[11px] text-muted-foreground truncate opacity-80">Akbar, Fawzy, Khai, Kira, Musa, Smi...</span>
+            </div>
+          </button>
+          <div className="flex items-center gap-1 text-muted-foreground">
+          <button className="hover:text-foreground transition-colors p-1.5">
+            <Video size={22} strokeWidth={1.5} />
+          </button>
+          <button className="hover:text-foreground transition-colors p-1.5">
+            <Phone size={20} strokeWidth={1.5} />
+          </button>
+          <button className="hover:text-foreground transition-colors p-1.5">
+            <MoreVertical size={20} strokeWidth={1.5} />
+          </button>
         </div>
-        <span className="font-semibold text-foreground flex-1">{chatUser.name}</span>
-        <button className="text-foreground p-1.5">
-          <Phone size={20} />
-        </button>
-        <button className="text-foreground p-1.5">
-          <Video size={20} />
-        </button>
       </div>
 
       {/* Messages */}
@@ -150,23 +200,55 @@ const ChatPage = () => {
       </div>
 
       {/* Input */}
-      <div className="sticky bottom-0 bg-card border-t border-border px-4 py-3">
-        <div className="flex items-center gap-2 bg-secondary rounded-full px-4 py-2">
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-            placeholder={`Message ${chatUser.name}...`}
-            className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
-          />
-          <button className="text-muted-foreground"><Paperclip size={18} /></button>
-          <button className="text-muted-foreground"><Image size={18} /></button>
+      <div className="sticky bottom-0 bg-gradient-to-t from-background via-background/90 to-transparent pb-6 pt-4 px-4 font-sans">
+        <div className="flex items-center gap-2">
           <button
-            onClick={sendMessage}
-            className="bg-primary text-primary-foreground w-8 h-8 rounded-full flex items-center justify-center ml-1"
+            className="text-foreground w-11 h-11 rounded-full flex items-center justify-center shrink-0 transition-colors"
+            style={{
+              background: pill.background,
+              border: pill.border,
+              boxShadow: pill.boxShadow,
+              backdropFilter: "blur(24px) saturate(180%)",
+              WebkitBackdropFilter: "blur(24px) saturate(180%)"
+            }}
           >
-            <Send size={16} />
+            <FiPlus size={24} />
           </button>
+          <div
+            className="flex-1 flex items-center gap-2 rounded-full px-4 py-2.5"
+            style={{
+              background: pill.background,
+              border: pill.border,
+              boxShadow: pill.boxShadow,
+              backdropFilter: "blur(24px) saturate(180%)",
+              WebkitBackdropFilter: "blur(24px) saturate(180%)"
+            }}
+          >
+            <button className="text-muted-foreground hover:text-foreground transition-colors -ml-1">
+              <PiSticker size={22} />
+            </button>
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+              placeholder="Type here"
+              className="flex-1 bg-transparent text-[15px] text-foreground placeholder:text-muted-foreground/70 outline-none px-1"
+            />
+            {input.trim() ? (
+              <button
+                onClick={sendMessage}
+                className="text-primary hover:text-primary/80 transition-colors"
+                title="Send"
+              >
+                <FiSend size={20} />
+              </button>
+            ) : (
+              <button className="text-muted-foreground hover:text-foreground transition-colors -mr-1">
+                <FiCamera size={20} />
+              </button>
+            )}
+          </div>
+
         </div>
       </div>
     </div>

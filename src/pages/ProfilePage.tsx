@@ -1,5 +1,9 @@
 import { useState, useEffect } from "react";
-import { Users, ChevronRight, ArrowLeft, Sun, Moon, LogOut, Mail, MapPin } from "lucide-react";
+import {
+  Sun, Moon, LogOut, Mail, Edit3,
+  Shield, Smartphone, HelpCircle, ChevronRight,
+  Settings, Users
+} from "lucide-react";
 import { currentUser, users } from "@/data/chatData";
 import { useNavigate } from "react-router-dom";
 
@@ -7,176 +11,138 @@ const connectedFriends = [users[1], users[3], users[5], users[7]];
 
 const ProfilePage = () => {
   const navigate = useNavigate();
-  const [showFriends, setShowFriends] = useState(false);
   const [dark, setDark] = useState(() =>
     document.documentElement.classList.contains("dark")
   );
 
   useEffect(() => {
-    if (dark) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
+    document.documentElement.classList.toggle("dark", dark);
   }, [dark]);
 
-  /* ── Friends sub-page ──────────────────────────────────────── */
-  if (showFriends) {
-    return (
-      <div className="min-h-screen bg-background pb-24 max-w-[430px] mx-auto">
+  const sections = [
+    {
+      label: "General",
+      items: [
+        { icon: Users, label: "Connected Friends", sub: `${connectedFriends.length} friends`, action: () => navigate("/friends") },
+      ],
+    },
+    {
+      label: "Preferences",
+      items: [
+        { icon: Shield, label: "Privacy", sub: "Control your data", action: () => navigate("/settings/privacy") },
+        { icon: Smartphone, label: "Devices", sub: "2 devices active", action: () => navigate("/settings/devices") },
+      ],
+    },
+    {
+      label: "More",
+      items: [
+        { icon: HelpCircle, label: "Help & Support", sub: "FAQs and contact", action: () => navigate("/settings/help") },
+        { icon: Settings, label: "All Settings", sub: "More options", action: () => navigate("/settings") },
+      ],
+    },
+  ];
 
-        {/* Header */}
-        <div className="px-5 pt-6 pb-2 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setShowFriends(false)}
-              className="w-9 h-9 flex items-center justify-center rounded-full bg-secondary text-muted-foreground hover:text-foreground transition-colors shrink-0"
-            >
-              <ArrowLeft size={17} />
-            </button>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">Friends</h1>
-          </div>
-          <span className="text-xs text-muted-foreground">{connectedFriends.length} connected</span>
-        </div>
-
-        {/* Divider */}
-        <div className="mx-5 mt-3 border-t border-border" />
-
-        {/* Friends list */}
-        <div className="mt-4">
-          <div className="px-5 mb-3">
-            <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              Connected
-            </span>
-          </div>
-          <div className="flex flex-col">
-            {connectedFriends.map((friend) => (
-              <button
-                key={friend.id}
-                onClick={() => navigate(`/chat/${friend.id}`)}
-                className="w-full flex items-center gap-3.5 px-5 py-3.5 hover:bg-secondary transition-colors"
-              >
-                <div className="relative shrink-0">
-                  <img
-                    src={friend.avatar}
-                    className="w-11 h-11 rounded-full object-cover"
-                    alt={friend.name}
-                  />
-                  {friend.online && (
-                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-background" />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0 text-left">
-                  <p className="font-semibold text-sm text-foreground leading-tight">{friend.name}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {friend.online ? "Active now" : "Offline"}
-                  </p>
-                </div>
-                <ChevronRight size={15} className="text-muted-foreground shrink-0" />
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  /* ── Main profile page ─────────────────────────────────────── */
   return (
-    <div className="min-h-screen bg-background pb-24 max-w-[430px] mx-auto">
+    <div className="min-h-screen bg-background max-w-[430px] mx-auto pb-24 overflow-y-auto scrollbar-none">
 
       {/* Header */}
-      <div className="px-5 pt-6 pb-2 flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Profile</h1>
-        <button
-          onClick={() => setDark(!dark)}
-          className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors active:scale-95"
-        >
-          {dark
-            ? <Sun size={17} className="text-foreground" />
-            : <Moon size={17} className="text-foreground" />}
-        </button>
+      <div className="px-5 pt-6 pb-4 flex items-center justify-between">
+        <h1 className="text-xl font-semibold text-foreground">Profile</h1>
       </div>
 
       {/* Avatar + info */}
-      <div className="px-5 mt-6 flex items-center gap-4">
+      <div className="px-5 flex items-center gap-4 mt-2">
         <div className="relative shrink-0">
-          <div className="w-20 h-20 rounded-full p-[2.5px] bg-gradient-to-br from-green-400 to-emerald-500">
-            <img
-              src={currentUser.avatar}
-              className="w-full h-full rounded-full object-cover border-2 border-background"
-              alt={currentUser.name}
-            />
-          </div>
-          <div className="absolute bottom-1 right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-background" />
+          <img
+            src={currentUser.avatar}
+            className="w-16 h-16 rounded-full object-cover border-2 border-border/30"
+            alt={currentUser.name}
+          />
+          <div className="absolute bottom-0.5 right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-background" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-bold text-lg text-foreground leading-tight">{currentUser.name}</p>
-          <div className="flex items-center gap-1.5 mt-1">
-            <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-            <span className="text-xs text-muted-foreground">Active now</span>
-          </div>
-          <div className="flex items-center gap-3 mt-2">
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Mail size={11} />
-              <span>me@mail.com</span>
-            </div>
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <MapPin size={11} />
-              <span>San Francisco</span>
-            </div>
+          <p className="font-semibold text-[17px] text-foreground leading-tight">{currentUser.name}</p>
+          <div className="flex items-center gap-3 mt-1.5">
+            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Mail size={11} /> me@mail.com
+            </span>
           </div>
         </div>
+        <button className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center shrink-0">
+          <Edit3 size={14} className="text-muted-foreground" />
+        </button>
       </div>
 
-      {/* Stats row */}
-      <div className="mx-5 mt-6 grid grid-cols-3 divide-x divide-border rounded-2xl bg-secondary overflow-hidden">
-        {[
-          { label: "Friends", value: connectedFriends.length },
-          { label: "Messages", value: "128" },
-          { label: "Groups", value: "4" },
-        ].map((stat) => (
-          <div key={stat.label} className="flex flex-col items-center py-4 gap-0.5">
-            <span className="text-base font-bold text-foreground">{stat.value}</span>
-            <span className="text-[10px] text-muted-foreground uppercase tracking-widest">{stat.label}</span>
+      {/* Divider */}
+      <div className="mx-5 my-6 border-t border-border/50" />
+
+      {/* Sectioned menu */}
+      <div className="px-5 flex flex-col gap-7">
+        {sections.map(({ label, items }) => (
+          <div key={label}>
+            <p className="text-[12px] font-semibold uppercase tracking-widest text-muted-foreground mb-3">{label}</p>
+            <div className="flex flex-col rounded-[20px] bg-secondary/30 px-4 py-2 border border-border/40">
+              {label === "Preferences" && (
+                <div className="w-full flex items-center gap-3.5 py-3.5 border-b border-border/30">
+                  <div className="w-9 h-9 rounded-2xl bg-secondary flex items-center justify-center shrink-0">
+                    {dark
+                      ? <Moon size={17} strokeWidth={1.8} className="text-muted-foreground" />
+                      : <Sun size={17} strokeWidth={1.8} className="text-muted-foreground" />}
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="text-[14px] font-medium text-foreground leading-tight">Dark Mode</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">{dark ? "On" : "Off"}</p>
+                  </div>
+                  <button
+                    onClick={() => setDark(!dark)}
+                    className={`w-11 h-6 rounded-full flex items-center px-0.5 transition-colors duration-200 shrink-0 ${dark ? "bg-green-500" : "bg-muted"}`}
+                  >
+                    <div className={`w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ${dark ? "translate-x-5" : "translate-x-0"}`} />
+                  </button>
+                </div>
+              )}
+              {items.map(({ icon: Icon, label: itemLabel, sub, action }, i, arr) => (
+                <button
+                  key={itemLabel}
+                  onClick={action}
+                  className={`w-full flex items-center gap-4 py-3.5 hover:opacity-80 transition-opacity active:scale-[0.99] border-b border-border/40 ${i === arr.length - 1 ? "border-none" : ""}`}
+                >
+                  <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center shrink-0 shadow-sm border border-border/20">
+                    <Icon size={18} strokeWidth={1.8} className="text-foreground" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="text-[15px] font-medium text-foreground leading-tight">{itemLabel}</p>
+                    <p className="text-[12px] text-muted-foreground mt-0.5">{sub}</p>
+                  </div>
+                  <ChevronRight size={16} className="text-muted-foreground/60 shrink-0" />
+                </button>
+              ))}
+            </div>
           </div>
         ))}
       </div>
 
       {/* Divider */}
-      <div className="mx-5 mt-6 border-t border-border" />
+      <div className="mx-5 my-6 border-t border-border/50" />
 
-      {/* Menu items */}
-      <div className="mt-4 flex flex-col">
-        <button
-          onClick={() => setShowFriends(true)}
-          className="w-full flex items-center gap-3.5 px-5 py-4 hover:bg-secondary transition-colors border-b border-border"
-        >
-          <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center shrink-0">
-            <Users size={17} className="text-foreground" />
-          </div>
-          <div className="flex-1 text-left">
-            <p className="font-semibold text-sm text-foreground">Connected Friends</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{connectedFriends.length} friends</p>
-          </div>
-          <ChevronRight size={15} className="text-muted-foreground" />
-        </button>
+      {/* Logout */}
+      <button
+        onClick={() => {
+          localStorage.removeItem("chat_auth");
+          navigate("/welcome", { replace: true });
+        }}
+        className="w-full flex items-center gap-4 px-5 py-2 active:scale-95 transition-transform"
+      >
+        <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center shrink-0">
+          <LogOut size={18} strokeWidth={1.8} className="text-red-500" />
+        </div>
+        <div className="flex-1 text-left">
+          <p className="text-[15px] font-medium text-red-500">Log out</p>
+          <p className="text-[12px] text-red-400/70 mt-0.5">Sign out of your account</p>
+        </div>
+      </button>
 
-        <button
-          onClick={() => {
-            localStorage.removeItem("chat_auth");
-            navigate("/welcome", { replace: true });
-          }}
-          className="w-full flex items-center gap-3.5 px-5 py-4 hover:bg-secondary transition-colors"
-        >
-          <div className="w-9 h-9 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
-            <LogOut size={17} className="text-destructive" />
-          </div>
-          <div className="flex-1 text-left">
-            <p className="font-semibold text-sm text-destructive">Log out</p>
-          </div>
-        </button>
-      </div>
+      <p className="text-center text-[11px] text-muted-foreground mt-4">Version 1.0.0</p>
     </div>
   );
 };

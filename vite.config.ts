@@ -7,7 +7,7 @@ import { componentTagger } from "lovable-tagger";
 // NOTE: Set `base` to your GitHub repo name, e.g. "/chat-clone-studio/"
 // If deploying to a custom domain or user/org root page, set base: "/"
 export default defineConfig(({ mode }) => ({
-  base: "/chat/",
+  base: "/Wassup/",
   server: {
     host: "::",
     port: 8080,

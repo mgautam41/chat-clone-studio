@@ -1,114 +1,103 @@
-import { Search, SlidersHorizontal, PenSquare } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { users, latestMessages } from "@/data/chatData";
+import { FiSearch, FiCamera, FiMoreVertical, FiPlus } from "react-icons/fi";
+import { BsCheckAll, BsPinFill } from "react-icons/bs";
+import { FaRegPenToSquare } from "react-icons/fa6";
+
 
 const MessengersPage = () => {
   const navigate = useNavigate();
   const onlineUsers = users.filter((u) => u.online);
 
   return (
-    <div className="min-h-screen bg-background pb-24 max-w-[430px] mx-auto">
-
+    <div className="min-h-screen bg-background pb-28 max-w-[430px] mx-auto font-sans">
       {/* Header */}
       <div className="px-5 pt-6 pb-2 flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Messages</h1>
-        <button className="w-9 h-9 flex items-center justify-center rounded-full bg-secondary text-muted-foreground hover:text-foreground transition-colors">
-          <PenSquare size={17} />
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">Chats</h1>
+        <div className="flex items-center gap-2">
+          <button className="w-10 h-10 flex items-center justify-center rounded-full bg-secondary/80 text-foreground transition-colors backdrop-blur-md">
+            <FiSearch size={20} />
+          </button>
+          <button className="w-10 h-10 flex items-center justify-center rounded-full bg-secondary/80 text-foreground transition-colors backdrop-blur-md">
+            <FaRegPenToSquare size={20} />
+          </button>
+          <button className="w-10 h-10 flex items-center justify-center rounded-full bg-secondary/80 text-foreground transition-colors backdrop-blur-md">
+            <FiMoreVertical size={20} />
+          </button>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="px-5 pb-6 flex items-center gap-2.5 overflow-x-auto scrollbar-none">
+        {["All", "Favorites", "Work", "Groups", "Communities"].map((filter, i) => (
+          <button
+            key={filter}
+            className={`shrink-0 px-4 py-1.5 rounded-full text-[14px] transition-colors font-medium ${i === 0
+              ? "bg-foreground/20 text-foreground"
+              : "bg-secondary/40 text-muted-foreground hover:bg-secondary/60"
+              }`}
+          >
+            {filter}
+          </button>
+        ))}
+        <button className="shrink-0 w-[30px] h-[30px] rounded-full bg-secondary/40 text-muted-foreground hover:bg-secondary/60 flex items-center justify-center transition-colors">
+          <FiPlus size={16} />
         </button>
       </div>
 
-      {/* Search */}
-      <div className="px-5 mt-3">
-        <div className="flex items-center gap-2.5 bg-secondary rounded-2xl px-4 py-3">
-          <Search size={15} className="text-muted-foreground shrink-0" />
-          <span className="text-sm text-muted-foreground flex-1">Search conversations…</span>
-          <div className="w-px h-4 bg-border" />
-          <SlidersHorizontal size={15} className="text-muted-foreground shrink-0" />
-        </div>
-      </div>
+      {/* Chat List */}
+      <div className="flex flex-col pb-6">
+        {latestMessages.map((msg, idx) => {
+          const user = users.find((u) => u.id === msg.userId);
+          if (!user) return null;
 
-      {/* Online now */}
-      <div className="mt-5">
-        <div className="px-5 mb-3 flex items-center justify-between">
-          <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            Online now
-          </span>
-          <span className="text-xs text-muted-foreground">{onlineUsers.length} active</span>
-        </div>
-        <div className="px-5 flex gap-4 overflow-x-auto pb-1 scrollbar-none">
-          {onlineUsers.map((user) => (
+          const isPinned = idx === 0;
+          const unreadCount = isPinned ? 4 : msg.unread > 0 ? msg.unread : (idx === 3 ? 2 : 0);
+
+          return (
             <button
-              key={user.id}
+              key={msg.userId}
               onClick={() => navigate(`/chat/${user.id}`)}
-              className="flex flex-col items-center gap-1.5 min-w-[52px] group"
+              className="w-full flex items-center gap-4 px-5 py-3.5 hover:bg-secondary/50 transition-colors group"
             >
-              <div className="relative">
-                <div className="w-13 h-13 rounded-full p-[2px] bg-gradient-to-br from-green-400 to-emerald-500">
-                  <img
-                    src={user.avatar}
-                    className="w-full h-full rounded-full object-cover border-2 border-background"
-                    alt={user.name}
-                  />
-                </div>
-                <div className="absolute bottom-0.5 right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-background" />
+              <div className="relative shrink-0">
+                <img
+                  src={user.avatar}
+                  className="w-[58px] h-[58px] rounded-full object-cover"
+                  alt={user.name}
+                />
               </div>
-              <span className="text-[10px] text-muted-foreground font-medium group-hover:text-foreground transition-colors truncate w-[52px] text-center leading-tight">
-                {user.name.split(" ")[0]}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
 
-      {/* Divider */}
-      <div className="mx-5 mt-5 border-t border-border" />
-
-      {/* Latest Messages */}
-      <div className="mt-4">
-        <div className="px-5 mb-3 flex items-center justify-between">
-          <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            All Messages
-          </span>
-          <span className="text-xs text-muted-foreground">{latestMessages.length} chats</span>
-        </div>
-        <div className="flex flex-col">
-          {latestMessages.map((msg) => {
-            const user = users.find((u) => u.id === msg.userId);
-            if (!user) return null;
-            return (
-              <button
-                key={msg.userId}
-                onClick={() => navigate(`/chat/${user.id}`)}
-                className="w-full flex items-center gap-3.5 px-5 py-3.5 hover:bg-secondary transition-colors"
-              >
-                <div className="relative shrink-0">
-                  <img
-                    src={user.avatar}
-                    className="w-11 h-11 rounded-full object-cover"
-                    alt={user.name}
-                  />
-                  {user.online && (
-                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-background" />
-                  )}
+              <div className="flex-1 min-w-0 text-left self-center mt-1 pb-1">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="font-semibold text-[16px] text-foreground leading-tight truncate pr-2">{user.name}</p>
+                  <span className={`text-[12px] shrink-0 ${unreadCount > 0 ? 'text-foreground' : 'text-muted-foreground'}`}>
+                    {idx === 0 ? "24 mins" : idx < 3 ? "2 mins" : idx === 3 ? "12 mins" : "20 mins"}
+                  </span>
                 </div>
-                <div className="flex-1 min-w-0 text-left">
-                  <div className="flex items-center justify-between mb-0.5">
-                    <p className="font-semibold text-sm text-foreground leading-tight">{user.name}</p>
-                    <span className="text-[10px] text-muted-foreground shrink-0 ml-2">{msg.time}</span>
+                <div className="flex items-center gap-1.5 justify-between">
+                  <div className="flex items-center gap-1.5 truncate flex-1">
+                    {idx > 0 && idx < 3 && <BsCheckAll size={20} className="text-[#4E89F0] shrink-0" />}
+                    {idx === 0 && <span className="text-muted-foreground text-sm">Khai :</span>}
+                    {idx === 4 && <span className="text-muted-foreground text-sm">You :</span>}
+                    <p className={`text-[14px] truncate ${unreadCount > 0 && idx === 0 ? "text-foreground font-medium" : "text-muted-foreground"}`}>
+                      {idx === 0 ? "Are they still open at sunday?" : msg.text}
+                    </p>
                   </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs text-muted-foreground truncate leading-relaxed">{msg.text}</p>
-                    {msg.unread > 0 && (
-                      <span className="shrink-0 bg-foreground text-background text-[9px] font-bold min-w-[18px] min-h-[18px] rounded-full flex items-center justify-center px-1">
-                        {msg.unread}
+
+                  <div className="flex items-center gap-2.5 shrink-0 pl-2">
+                    {isPinned && <BsPinFill size={14} className="text-muted-foreground" />}
+                    {unreadCount > 0 && (
+                      <span className="bg-[#24d366] text-white text-[11px] font-bold min-w-[20px] h-[20px] rounded-full flex items-center justify-center px-1">
+                        {unreadCount}
                       </span>
                     )}
                   </div>
                 </div>
-              </button>
-            );
-          })}
-        </div>
+              </div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

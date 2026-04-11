@@ -10,6 +10,7 @@ import SearchPage from "./pages/SearchPage";
 import UserProfilePage from "./pages/UserProfilePage";
 import ActivityPage from "./pages/ActivityPage";
 import ProfilePage from "./pages/ProfilePage";
+import ChatUserProfile from "./pages/ChatUserProfile";
 import BottomNav from "./components/BottomNav";
 import NotFound from "./pages/NotFound";
 import WelcomePage from "./pages/WelcomePage";
@@ -43,6 +44,7 @@ const App = () => (
           {/* Protected routes */}
           <Route path="/messengers" element={<RequireAuth><MessengersPage /></RequireAuth>} />
           <Route path="/chat/:userId" element={<RequireAuth><ChatPage /></RequireAuth>} />
+          <Route path="/chat/:userId/profile" element={<RequireAuth><ChatUserProfile /></RequireAuth>} />
           <Route path="/search" element={<RequireAuth><SearchPage /></RequireAuth>} />
           <Route path="/user/:userId" element={<RequireAuth><UserProfilePage /></RequireAuth>} />
           <Route path="/activity" element={<RequireAuth><ActivityPage /></RequireAuth>} />
