@@ -29,6 +29,7 @@
     --badge-foreground: 0 0% 100%;
     --chat-incoming: 30 15% 93%;
     --chat-outgoing: 0 0% 100%;
+    --glass-bg: 255, 255, 255;
   }
 
   .dark {
@@ -56,6 +57,7 @@
     --badge-foreground: 0 0% 100%;
     --chat-incoming: 0 0% 16%;
     --chat-outgoing: 0 0% 20%;
+    --glass-bg: 40, 40, 40;
   }
 }
 
