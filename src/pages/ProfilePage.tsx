@@ -21,12 +21,6 @@ const ProfilePage = () => {
 
   const sections = [
     {
-      label: "General",
-      items: [
-        { icon: Users, label: "Connected Friends", sub: `${connectedFriends.length} friends`, action: () => navigate("/friends") },
-      ],
-    },
-    {
       label: "Preferences",
       items: [
         { icon: Shield, label: "Privacy", sub: "Control your data", action: () => navigate("/settings/privacy") },

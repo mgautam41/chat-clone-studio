@@ -1,102 +1,136 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Paperclip, Image as ImageIcon, FileText, Play, Pause, Phone, Video, MoreVertical } from "lucide-react";
+import { ArrowLeft, Phone, Video, MoreVertical, X } from "lucide-react";
 import { FiPlus, FiCamera, FiSend } from "react-icons/fi";
 import { PiSticker } from "react-icons/pi";
-import { users, conversations, currentUser } from "@/data/chatData";
-import type { Message } from "@/data/chatData";
 
-function useIsDark() {
-  const [isDark, setIsDark] = useState(() =>
-    document.documentElement.classList.contains("dark")
-  );
+import { users } from "@/data/chatData";
+import { useIsDark } from "@/hooks/useIsDark";
+import { Msg } from "@/types/chat";
+import { FAKE_MESSAGES, TIME_DIVIDERS } from "@/data/mockMessages";
 
-  useEffect(() => {
-    const observer = new MutationObserver(() => {
-      setIsDark(document.documentElement.classList.contains("dark"));
-    });
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["class"],
-    });
-    return () => observer.disconnect();
-  }, []);
+import { Lightbox } from "@/components/chat/Lightbox";
+import { SwipeRow } from "@/components/chat/SwipeRow";
+import { PendingStrip } from "@/components/chat/PendingStrip";
+import { AttachmentPanel } from "@/components/chat/AttachmentPanel";
 
-  return isDark;
-}
-
+/* ────────────────────────────────────────────────────────────────────────── */
+/*  ChatPage                                                                  */
+/* ────────────────────────────────────────────────────────────────────────── */
 const ChatPage = () => {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
   const isDark = useIsDark();
 
   const pill = isDark
-    ? {
-      background: "rgba(20, 20, 20, 0.65)",
-      border: "1px solid rgba(255,255,255,0.10)",
-      boxShadow:
-        "0 8px 32px rgba(0,0,0,0.45), 0 1px 0 rgba(255,255,255,0.06) inset, 0 -1px 0 rgba(0,0,0,0.3) inset",
-    }
-    : {
-      background: "rgba(255, 255, 255, 0.72)",
-      border: "1px solid rgba(0,0,0,0.08)",
-      boxShadow:
-        "0 4px 24px rgba(0,0,0,0.10), 0 1px 0 rgba(255,255,255,0.9) inset, 0 -1px 0 rgba(0,0,0,0.04) inset",
-    };
+    ? { background: "rgba(20,20,20,0.65)", border: "1px solid rgba(255,255,255,0.10)", boxShadow: "0 8px 32px rgba(0,0,0,0.45),0 1px 0 rgba(255,255,255,0.06) inset" }
+    : { background: "rgba(255,255,255,0.72)", border: "1px solid rgba(0,0,0,0.08)", boxShadow: "0 4px 24px rgba(0,0,0,0.10),0 1px 0 rgba(255,255,255,0.9) inset" };
+  const blurStyle = { ...pill, backdropFilter: "blur(24px) saturate(180%)", WebkitBackdropFilter: "blur(24px) saturate(180%)" };
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<Message[]>(conversations["1"] || []);
+  const [messages, setMessages] = useState<Msg[]>(FAKE_MESSAGES);
   const [playingVoice, setPlayingVoice] = useState<string | null>(null);
   const [isTyping, setIsTyping] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<Msg | null>(null);
+  const [showAttachPanel, setShowAttachPanel] = useState(false);
+  const [pendingImages, setPendingImages] = useState<string[]>([]);
+  const [lightbox, setLightbox] = useState<{ images: string[]; index: number } | null>(null);
+
+  const quickCameraRef = useRef<HTMLInputElement>(null);
+
+  const handleQuickCameraPick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    Promise.all(
+      files.map(
+        file => new Promise<string>(resolve => {
+          const r = new FileReader();
+          r.onload = () => resolve(r.result as string);
+          r.readAsDataURL(file);
+        })
+      )
+    ).then(urls => { addPending(urls); });
+    e.target.value = "";
+  };
 
   const chatUser = users.find(u => u.id === userId) || users[1];
 
+  /* index of last "seen" outgoing message */
+  const lastSeenIdx = (() => {
+    for (let i = messages.length - 1; i >= 0; i--)
+      if (messages[i].senderId === "me" && messages[i].status === "seen") return i;
+    return -1;
+  })();
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, isTyping, pendingImages]);
+
+  const addPending = (urls: string[]) => setPendingImages(prev => [...prev, ...urls]);
+  const removePending = (i: number) => setPendingImages(prev => prev.filter((_, idx) => idx !== i));
+  const openLightbox = (images: string[], index: number) => setLightbox({ images, index });
 
   const sendMessage = () => {
-    if (!input.trim()) return;
-    const newMsg: Message = {
+    if (!input.trim() && pendingImages.length === 0) return;
+    const ts = new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+
+    const newMsg: Msg = {
       id: `m${Date.now()}`,
-      senderId: currentUser.id,
-      text: input,
-      timestamp: new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+      senderId: "me",
+      text: input.trim() || undefined,
+      timestamp: ts,
+      status: "sent",
+      ...(pendingImages.length > 0 ? { images: [...pendingImages] } : {}),
+      ...(replyingTo ? { replyTo: { id: replyingTo.id, senderId: replyingTo.senderId, text: replyingTo.text || "Voice message" } } : {}),
     };
+
     setMessages(prev => [...prev, newMsg]);
     setInput("");
+    setPendingImages([]);
+    setReplyingTo(null);
 
-    // Show typing indicator then reply
+    /* status simulation */
+    setTimeout(() => setMessages(prev => prev.map(m =>
+      m.senderId === "me" && m.status === "sent" ? { ...m, status: "delivered" } : m
+    )), 900);
+    setTimeout(() => setMessages(prev => prev.map(m =>
+      m.senderId === "me" && m.status === "delivered" ? { ...m, status: "seen" } : m
+    )), 2400);
+
+    /* auto-reply */
     setIsTyping(true);
     setTimeout(() => {
       setIsTyping(false);
-      const replies = [
-        "Got it, thanks! 👍",
-        "Sure, I'll look into that.",
-        "Makes sense, let me check.",
-        "On it!",
-        "Sounds good to me!",
-      ];
-      const reply: Message = {
-        id: `m${Date.now() + 1}`,
-        senderId: chatUser.id,
+      const replies = ["Got it! 👍", "Sure, I'll look into that.", "Makes sense!", "On it!", "ASAP, brb!"];
+      setMessages(prev => [...prev, {
+        id: `m${Date.now() + 999}`,
+        senderId: "other",
         text: replies[Math.floor(Math.random() * replies.length)],
         timestamp: new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
-      };
-      setMessages(prev => [...prev, reply]);
+      }]);
     }, 2000);
   };
 
+  const hasContent = input.trim() || pendingImages.length > 0;
+
   return (
-    <div className="min-h-screen bg-background flex flex-col max-w-[430px] mx-auto">
-        {/* Header */}
-        <div className="flex items-center gap-3 px-4 py-3 backdrop-blur-md bg-background/50 sticky top-0 z-10 pb-4 border-none">
+    <>
+      <input ref={quickCameraRef} type="file" multiple accept="image/*,video/*" capture="environment" className="hidden" onChange={handleQuickCameraPick} />
+
+      {lightbox && (
+        <Lightbox images={lightbox.images} startIndex={lightbox.index} onClose={() => setLightbox(null)} />
+      )}
+
+      <div className="min-h-screen bg-background flex flex-col max-w-[430px] mx-auto">
+
+        {/* ── Header ── */}
+        <div className="flex items-center gap-3 px-4 py-3 backdrop-blur-md bg-background/50 sticky top-0 z-10 pb-4">
           <button onClick={() => navigate(-1)} className="text-foreground hover:opacity-80 transition-opacity">
             <ArrowLeft size={22} strokeWidth={1.5} />
           </button>
-          <button 
-            onClick={() => navigate(`/chat/${chatUser.id}/profile`)} 
+          <button
+            onClick={() => navigate(`/chat/${chatUser.id}/profile`)}
             className="flex-1 min-w-0 flex items-center gap-3 text-left hover:opacity-80 transition-opacity"
           >
             <div className="relative shrink-0">
@@ -105,153 +139,136 @@ const ChatPage = () => {
             </div>
             <div className="flex flex-col flex-1 overflow-hidden leading-tight justify-center mt-0.5">
               <span className="font-semibold text-foreground text-[15px] truncate">{chatUser.name}</span>
-              <span className="text-[11px] text-muted-foreground truncate opacity-80">Akbar, Fawzy, Khai, Kira, Musa, Smi...</span>
+              <span className="text-[11px] text-muted-foreground truncate opacity-80">Active now</span>
             </div>
           </button>
           <div className="flex items-center gap-1 text-muted-foreground">
-          <button className="hover:text-foreground transition-colors p-1.5">
-            <Video size={22} strokeWidth={1.5} />
-          </button>
-          <button className="hover:text-foreground transition-colors p-1.5">
-            <Phone size={20} strokeWidth={1.5} />
-          </button>
-          <button className="hover:text-foreground transition-colors p-1.5">
-            <MoreVertical size={20} strokeWidth={1.5} />
-          </button>
+            <button className="hover:text-foreground transition-colors p-1.5"><Video size={22} strokeWidth={1.5} /></button>
+            <button className="hover:text-foreground transition-colors p-1.5"><Phone size={20} strokeWidth={1.5} /></button>
+            <button className="hover:text-foreground transition-colors p-1.5"><MoreVertical size={20} strokeWidth={1.5} /></button>
+          </div>
         </div>
-      </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-        {messages.map((msg) => {
-          const isMe = msg.senderId === currentUser.id;
-          return (
-            <div key={msg.id}>
-              {!isMe && (
-                <p className="text-xs font-medium text-foreground mb-1">{chatUser.name.split(" ")[0]}</p>
-              )}
+        {/* ── Messages ── */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-2">
+          {messages.map((msg, index) => {
+            const isMe = msg.senderId === "me";
+            const prevMsg = messages[index - 1];
+            const nextMsg = messages[index + 1];
+            const showName = !isMe && (!prevMsg || prevMsg.senderId !== msg.senderId);
+            const isLastInGroup = !nextMsg || nextMsg.senderId !== msg.senderId;
+            const timeDivider = TIME_DIVIDERS[msg.id];
+            const isLastMyMsg = index === lastSeenIdx;
 
-              <div className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
-                <div className="max-w-[80%]">
-                  {msg.replyTo && (
-                    <div className="mb-1 border-l-2 border-border pl-2 text-xs text-muted-foreground bg-secondary rounded-md p-2">
-                      <span className="font-medium">Replying :</span>
-                      <p className="mt-0.5 truncate">{msg.replyTo.text}</p>
-                    </div>
-                  )}
-
-                  {msg.voiceNote ? (
-                    <div className={`rounded-2xl px-4 py-3 flex items-center gap-3 ${isMe ? "bg-chat-outgoing border border-border" : "bg-chat-incoming"}`}>
-                      <button onClick={() => setPlayingVoice(playingVoice === msg.id ? null : msg.id)}>
-                        {playingVoice === msg.id ? <Pause size={18} /> : <Play size={18} />}
-                      </button>
-                      <div className="flex-1 flex items-center gap-0.5">
-                        {Array.from({ length: 20 }).map((_, i) => (
-                          <div
-                            key={i}
-                            className="w-0.5 bg-foreground/40 rounded-full"
-                            style={{ height: `${Math.random() * 16 + 4}px` }}
-                          />
-                        ))}
-                      </div>
-                      <span className="text-xs text-muted-foreground">1X</span>
-                    </div>
-                  ) : (
-                    <div className={`rounded-2xl px-4 py-2.5 ${isMe ? "bg-chat-outgoing border border-border" : "bg-chat-incoming"}`}>
-                      <p className="text-sm text-foreground leading-relaxed">{msg.text}</p>
-                      {msg.image && (
-                        <img src={msg.image} className="mt-2 w-16 h-16 rounded-lg object-cover" alt="" />
-                      )}
-                    </div>
-                  )}
-
-                  {msg.reactions && (
-                    <div className="flex gap-1 mt-1">
-                      {msg.reactions.map((r, i) => (
-                        <span key={i} className="text-sm">{r}</span>
-                      ))}
-                    </div>
-                  )}
-
-                  {!isMe && msg.text && !msg.voiceNote && (
-                    <div className="flex items-center gap-2 mt-1">
-                      <button className="text-muted-foreground hover:text-foreground"><Paperclip size={14} /></button>
-                      <button className="text-muted-foreground hover:text-foreground"><FileText size={14} /></button>
-                    </div>
-                  )}
-
-                  <p className={`text-[10px] text-muted-foreground mt-1 ${isMe ? "text-right" : ""}`}>{msg.timestamp}</p>
+            return (
+              <div key={msg.id} id={`msg-${msg.id}`}>
+                {timeDivider && (
+                  <div className="flex justify-center my-5">
+                    <span className="text-[11px] font-medium text-muted-foreground/55 tracking-wide">{timeDivider}</span>
+                  </div>
+                )}
+                {showName && (
+                  <p className="text-[13px] font-bold text-foreground mb-1.5 mt-2">
+                    {chatUser.name.split(" ")[0]}
+                  </p>
+                )}
+                <div className={isLastInGroup ? "mb-4" : "mb-1"}>
+                  <SwipeRow
+                    msg={msg} isMe={isMe} isLast={isLastInGroup} isLastMyMsg={isLastMyMsg}
+                    onReply={setReplyingTo} chatUser={chatUser}
+                    playingVoice={playingVoice} setPlayingVoice={setPlayingVoice}
+                    onImageTap={openLightbox}
+                  />
                 </div>
               </div>
-            </div>
-          );
-        })}
-        {/* Typing indicator */}
-        {isTyping && (
-          <div className="flex justify-start">
-            <div className="bg-chat-incoming rounded-2xl px-4 py-3 flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-muted-foreground animate-typing-bounce" style={{ animationDelay: "0ms" }} />
-              <div className="w-2 h-2 rounded-full bg-muted-foreground animate-typing-bounce" style={{ animationDelay: "200ms" }} />
-              <div className="w-2 h-2 rounded-full bg-muted-foreground animate-typing-bounce" style={{ animationDelay: "400ms" }} />
-            </div>
-          </div>
-        )}
-        <div ref={bottomRef} />
-      </div>
+            );
+          })}
 
-      {/* Input */}
-      <div className="sticky bottom-0 bg-gradient-to-t from-background via-background/90 to-transparent pb-6 pt-4 px-4 font-sans">
-        <div className="flex items-center gap-2">
-          <button
-            className="text-foreground w-11 h-11 rounded-full flex items-center justify-center shrink-0 transition-colors"
-            style={{
-              background: pill.background,
-              border: pill.border,
-              boxShadow: pill.boxShadow,
-              backdropFilter: "blur(24px) saturate(180%)",
-              WebkitBackdropFilter: "blur(24px) saturate(180%)"
-            }}
-          >
-            <FiPlus size={24} />
-          </button>
-          <div
-            className="flex-1 flex items-center gap-2 rounded-full px-4 py-2.5"
-            style={{
-              background: pill.background,
-              border: pill.border,
-              boxShadow: pill.boxShadow,
-              backdropFilter: "blur(24px) saturate(180%)",
-              WebkitBackdropFilter: "blur(24px) saturate(180%)"
-            }}
-          >
-            <button className="text-muted-foreground hover:text-foreground transition-colors -ml-1">
-              <PiSticker size={22} />
-            </button>
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-              placeholder="Type here"
-              className="flex-1 bg-transparent text-[15px] text-foreground placeholder:text-muted-foreground/70 outline-none px-1"
-            />
-            {input.trim() ? (
+          {isTyping && (
+            <div className="flex justify-start mb-4">
+              <div className="bg-[#f0f0f0] dark:bg-[#2a2a2a] border border-black/[0.06] dark:border-white/[0.08] rounded-2xl px-4 py-3 flex items-center gap-1.5">
+                {[0, 180, 360].map(delay => (
+                  <div key={delay} className="w-2 h-2 rounded-full bg-muted-foreground animate-typing-bounce" style={{ animationDelay: `${delay}ms` }} />
+                ))}
+              </div>
+            </div>
+          )}
+          <div ref={bottomRef} />
+        </div>
+
+        {/* ── Sticky bottom ── */}
+        <div className="sticky bottom-0 bg-gradient-to-t from-background via-background/90 to-transparent pb-6 pt-4 px-4">
+
+          {/* Reply bar */}
+          {replyingTo && (
+            <div className="pb-3">
+              <div className="flex items-center gap-2 bg-[#f0f0f0]/95 dark:bg-[#2a2a2a]/95 backdrop-blur-md border border-black/[0.06] dark:border-white/[0.08] shadow-sm rounded-2xl px-3 py-2.5">
+                <div className="w-[3px] h-9 bg-foreground/30 rounded-full shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-semibold text-foreground/60 mb-0.5">
+                    Replying to {replyingTo.senderId === "me" ? "yourself" : chatUser.name.split(" ")[0]}
+                  </p>
+                  <p className="text-[12px] text-muted-foreground truncate">
+                    {replyingTo.voiceNote ? "🎤 Voice message" : replyingTo.text}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setReplyingTo(null)}
+                  className="w-7 h-7 rounded-full bg-secondary hover:opacity-80 flex items-center justify-center shrink-0 transition-opacity"
+                >
+                  <X size={14} className="text-muted-foreground" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Pending preview strip */}
+          {pendingImages.length > 0 && (
+            <PendingStrip images={pendingImages} onRemove={removePending} />
+          )}
+
+          {/* Attachment panel OR normal input explicitly toggled */}
+          {showAttachPanel ? (
+            <div className="rounded-[32px] pt-5 pb-0" style={{ ...blurStyle, animation: "apSlide 0.25s cubic-bezier(0.34,1.2,0.64,1) both" }}>
+              <style>{`@keyframes apSlide { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }`}</style>
+              <AttachmentPanel onClose={() => setShowAttachPanel(false)} onAddImages={addPending} />
+            </div>
+          ) : (
+            <div className="flex items-center gap-2" style={{ animation: "apFade 0.2s ease both" }}>
+              <style>{`@keyframes apFade { from{opacity:0} to{opacity:1} }`}</style>
               <button
-                onClick={sendMessage}
-                className="text-primary hover:text-primary/80 transition-colors"
-                title="Send"
+                onClick={() => setShowAttachPanel(true)}
+                className={`text-foreground w-11 h-11 rounded-full flex items-center justify-center shrink-0 active:scale-95 transition-transform`}
+                style={blurStyle}
               >
-                <FiSend size={20} />
+                <FiPlus size={24} />
               </button>
-            ) : (
-              <button className="text-muted-foreground hover:text-foreground transition-colors -mr-1">
-                <FiCamera size={20} />
-              </button>
-            )}
-          </div>
-
+              <div className="flex-1 flex items-center gap-2 rounded-full px-4 py-2.5" style={blurStyle}>
+                {/* <button className="text-muted-foreground hover:text-foreground transition-colors -ml-1">
+                  <PiSticker size={22} />
+                </button> */}
+                <input
+                  value={input}
+                  onChange={e => setInput(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && sendMessage()}
+                  placeholder="Type here"
+                  className="flex-1 bg-transparent text-[15px] text-foreground placeholder:text-muted-foreground/70 outline-none px-1"
+                />
+                {hasContent ? (
+                  <button onClick={sendMessage} className="text-primary hover:text-primary/80 transition-colors">
+                    <FiSend size={20} />
+                  </button>
+                ) : (
+                  <button onClick={() => quickCameraRef.current?.click()} className="text-muted-foreground hover:text-foreground transition-colors -mr-1">
+                    <FiCamera size={20} />
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
-    </div>
+    </>
   );
 };
 

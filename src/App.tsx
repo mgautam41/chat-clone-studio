@@ -7,7 +7,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import MessengersPage from "./pages/MessengersPage";
 import ChatPage from "./pages/ChatPage";
 import SearchPage from "./pages/SearchPage";
-import UserProfilePage from "./pages/UserProfilePage";
 import ActivityPage from "./pages/ActivityPage";
 import ProfilePage from "./pages/ProfilePage";
 import ChatUserProfile from "./pages/ChatUserProfile";
@@ -35,7 +34,7 @@ const App = () => (
         <Routes>
           {/* Guest-only: redirect logged-in users to /messengers */}
           <Route path="/welcome" element={<GuestOnly><WelcomePage /></GuestOnly>} />
-          <Route path="/login"   element={<GuestOnly><LoginPage /></GuestOnly>} />
+          <Route path="/login" element={<GuestOnly><LoginPage /></GuestOnly>} />
 
           {/* Root redirect — welcome for guests, messages for authed */}
           <Route path="/" element={<RootRedirect />} />
@@ -46,7 +45,6 @@ const App = () => (
           <Route path="/chat/:userId" element={<RequireAuth><ChatPage /></RequireAuth>} />
           <Route path="/chat/:userId/profile" element={<RequireAuth><ChatUserProfile /></RequireAuth>} />
           <Route path="/search" element={<RequireAuth><SearchPage /></RequireAuth>} />
-          <Route path="/user/:userId" element={<RequireAuth><UserProfilePage /></RequireAuth>} />
           <Route path="/activity" element={<RequireAuth><ActivityPage /></RequireAuth>} />
           <Route path="/profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
           <Route path="*" element={<NotFound />} />
