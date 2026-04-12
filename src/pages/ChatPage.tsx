@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Phone, Video, MoreVertical, X } from "lucide-react";
 import { FiPlus, FiCamera, FiSend } from "react-icons/fi";
 import { PiSticker } from "react-icons/pi";
+import { toast } from "sonner";
 
 import { useIsDark } from "@/hooks/useIsDark";
 import { Msg } from "@/types/chat";
@@ -98,8 +99,13 @@ const ChatPage = () => {
           };
         });
         setMessages(mappedMsgs);
-      } catch (err) {
-        console.error("Failed to load chat", err);
+      } catch (err: any) {
+        if (err.response?.status === 403) {
+          toast.error("You must connect before chatting");
+          navigate("/search");
+        } else {
+          console.error("Failed to load chat", err);
+        }
       }
     };
     if (userId) loadChat();

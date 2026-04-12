@@ -1,14 +1,17 @@
 import { useState, useEffect } from "react";
 import { Search, X, MailPlus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../lib/api";
+import { useAuth } from "../lib/auth";
+import { toast } from "sonner";
 
 const SearchPage = () => {
   const navigate = useNavigate();
+  const { user: currentUser } = useAuth();
+  const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [requestedIds, setRequestedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -30,17 +33,41 @@ const SearchPage = () => {
     queryKey: ["users", "all"],
     queryFn: async () => {
       const res = await api.get("/users");
-      return res.data;
+      // Filter out current user
+      return res.data.filter((u: any) => u._id !== currentUser?._id);
     },
-    enabled: !debouncedQuery
+    enabled: !!currentUser
   });
 
-  const displayedUsers = debouncedQuery ? searchResults : allUsers;
-  const loading = debouncedQuery ? isLoading : loadingAll;
+  const { data: connections = [], isLoading: loadingConnections } = useQuery({
+    queryKey: ["connections"],
+    queryFn: async () => {
+      const res = await api.get("/connections");
+      return res.data;
+    }
+  });
 
-  // Simulate contact requests
-  const handleSendRequest = (id: string) => {
-    setRequestedIds(new Set([...requestedIds, id]));
+  const sendRequestMutation = useMutation({
+    mutationFn: (receiverId: string) => api.post("/connections", { receiverId }),
+    onSuccess: () => {
+      toast.success("Connection request sent!");
+      queryClient.invalidateQueries({ queryKey: ["connections"] });
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.error || "Failed to send request");
+    }
+  });
+
+  const displayedUsers = debouncedQuery ? searchResults.filter((u: any) => u._id !== currentUser?._id) : allUsers;
+  const loading = (debouncedQuery ? isLoading : loadingAll) || loadingConnections;
+
+  const getConnectStatus = (targetUserId: string) => {
+    const conn = connections.find((c: any) => 
+      (c.senderId._id === currentUser?._id && c.receiverId._id === targetUserId) ||
+      (c.senderId._id === targetUserId && c.receiverId._id === currentUser?._id)
+    );
+    if (!conn) return "none";
+    return conn.status;
   };
 
   return (
@@ -94,49 +121,97 @@ const SearchPage = () => {
         {/* Users list */}
         {!loading && displayedUsers.length > 0 && (
           <div className="mb-6">
-            <div className="px-5 mb-3 flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                {debouncedQuery ? "Search Results" : "All Users"}
-              </span>
-            </div>
+            {/* Connected Section */}
+            {displayedUsers.some(u => getConnectStatus(u._id) === "accepted") && (
+              <div className="mt-4">
+                <div className="px-5 mb-2">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground/60 flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 opacity-70" />
+                    Connections
+                  </span>
+                </div>
+                <div className="flex flex-col">
+                  {displayedUsers
+                    .filter(u => getConnectStatus(u._id) === "accepted")
+                    .map((user: any) => renderUserRow(user))}
+                </div>
+              </div>
+            )}
 
-            <div className="flex flex-col">
-              {displayedUsers.map((user: any) => {
-                const requested = requestedIds.has(user._id);
-                return (
-                  <button
-                    key={user._id}
-                    onClick={() => navigate(`/chat/${user._id}`)}
-                    className="w-full flex items-center gap-3.5 px-5 py-3.5 hover:bg-secondary transition-colors"
-                  >
-                    <div className="relative shrink-0">
-                      <img
-                        src={user.avatar || "https://i.pravatar.cc/150"}
-                        className="w-11 h-11 rounded-full object-cover"
-                        alt={user.name}
-                      />
-                      {user.online && (
-                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-[2.5px] border-background" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0 text-left">
-                      <p className="font-semibold text-sm text-foreground leading-tight">{user.name}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                        {user.email}
-                      </p>
-                    </div>
-                    <div className="flex flex-col items-end gap-1 shrink-0">
-                      {user.online && <p className="text-[10px] text-green-500 font-medium">Online</p>}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+            {/* Discover Section */}
+            {displayedUsers.some(u => getConnectStatus(u._id) !== "accepted") && (
+              <div className="mt-6">
+                <div className="px-5 mb-2">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground/60 flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-foreground/20" />
+                    New People
+                  </span>
+                </div>
+                <div className="flex flex-col">
+                  {displayedUsers
+                    .filter(u => getConnectStatus(u._id) !== "accepted")
+                    .map((user: any) => renderUserRow(user))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
     </div>
   );
+
+  function renderUserRow(user: any) {
+    const status = getConnectStatus(user._id);
+    const isConnected = status === "accepted";
+    const isPending = status === "pending";
+
+    return (
+      <div
+        key={user._id}
+        className="w-full flex items-center gap-3.5 px-5 py-4 hover:bg-secondary/40 transition-all border-b border-border/10 last:border-0"
+      >
+        <div className="relative shrink-0">
+          <img
+            src={user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.name}`}
+            className="w-12 h-12 rounded-full object-cover shadow-sm border border-border/20"
+            alt={user.name}
+          />
+          {user.online && (
+            <div className="absolute bottom-0.5 right-0.5 w-3.5 h-3.5 bg-green-500 rounded-full border-[2.5px] border-background shadow-sm" />
+          )}
+        </div>
+        <div className="flex-1 min-w-0 text-left">
+          <p className="font-bold text-[15px] text-foreground leading-none tracking-tight">{user.name}</p>
+          <p className="text-[11px] text-muted-foreground mt-1.5 truncate opacity-60 font-medium">
+            {user.email}
+          </p>
+        </div>
+        
+        {isConnected ? (
+          <button 
+            onClick={() => navigate(`/chat/${user._id}`)}
+            className="px-5 py-1.5 rounded-xl bg-foreground/5 hover:bg-foreground/[0.08] text-foreground text-[11px] font-bold transition-all active:scale-95 border border-foreground/5"
+          >
+            Message
+          </button>
+        ) : isPending ? (
+          <div className="px-5 py-1.5 rounded-xl bg-secondary/80 text-muted-foreground/60 text-[11px] font-bold border border-border/40">
+            Pending
+          </div>
+        ) : (
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              sendRequestMutation.mutate(user._id);
+            }}
+            className="px-5 py-1.5 rounded-xl bg-foreground text-background hover:opacity-90 text-[11px] font-black transition-all active:scale-95 shadow-md shadow-foreground/10"
+          >
+            Connect
+          </button>
+        )}
+      </div>
+    );
+  }
 };
 
 export default SearchPage;
