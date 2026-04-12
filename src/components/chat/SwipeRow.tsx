@@ -3,7 +3,8 @@ import { ArrowLeft, Copy, MoreVertical } from "lucide-react";
 import { BubbleContent } from "./BubbleContent";
 import { StatusIcon } from "./StatusIcon";
 import { Msg } from "@/types/chat";
-import { SWIPE_THRESHOLD } from "@/data/mockMessages";
+
+const SWIPE_THRESHOLD = 45;
 
 export function SwipeRow({
   msg, isMe, isLast, isLastMyMsg, onReply, chatUser,

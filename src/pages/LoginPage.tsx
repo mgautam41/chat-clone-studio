@@ -1,9 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Mail, User, ArrowLeft, CheckCircle2, Loader2, Lock } from "lucide-react";
-
-/* ── fake OTP ─────────────────────────────────────────── */
-const FAKE_OTP = "123456";
+import api from "../lib/api";
+import { useAuth } from "../lib/auth";
 
 type Stage = "form" | "otp";
 
@@ -35,6 +34,7 @@ const STYLES = `
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { setUser } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [stage, setStage] = useState<Stage>("form");
@@ -59,15 +59,19 @@ export default function LoginPage() {
     }
   }, [stage]);
 
-  const handleSendOtp = (e: React.FormEvent) => {
+  const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !email.trim()) return;
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    setError("");
+    try {
+      await api.post("/auth/request-otp", { name, email });
       setStage("otp");
-      console.log(`[DEV] OTP for ${email}: ${FAKE_OTP}`);
-    }, 1200);
+    } catch (err: any) {
+      setError(err.response?.data?.error || "Failed to send OTP");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleOtpChange = (index: number, value: string) => {
@@ -98,20 +102,21 @@ export default function LoginPage() {
     else inputRefs.current[pasted.length]?.focus();
   };
 
-  const verifyOtp = (code: string) => {
+  const verifyOtp = async (code: string) => {
     setLoading(true);
-    setTimeout(() => {
+    setError("");
+    try {
+      const res = await api.post("/auth/verify-otp", { email, otp: code });
+      setSuccess(true);
+      setUser(res.data);
+      setTimeout(() => navigate("/messengers", { replace: true }), 900);
+    } catch (err: any) {
+      setError(err.response?.data?.error || "Incorrect OTP. Please try again.");
+      setOtp(["", "", "", "", "", ""]);
+      inputRefs.current[0]?.focus();
+    } finally {
       setLoading(false);
-      if (code === FAKE_OTP) {
-        setSuccess(true);
-        localStorage.setItem("chat_auth", JSON.stringify({ name, email }));
-        setTimeout(() => navigate("/messengers", { replace: true }), 900);
-      } else {
-        setError("Incorrect OTP. Try 123456 for demo.");
-        setOtp(["", "", "", "", "", ""]);
-        inputRefs.current[0]?.focus();
-      }
-    }, 800);
+    }
   };
 
   const isFormValid = name.trim().length > 1 && /\S+@\S+\.\S+/.test(email);
@@ -159,11 +164,6 @@ export default function LoginPage() {
               ? "Enter your name & email to continue."
               : "We sent a 6-digit code to your inbox."}
           </p>
-          {stage === "otp" && (
-            <span className="inline-block mt-2 text-[10px] px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-500 font-mono border border-yellow-500/20">
-              Demo OTP: {FAKE_OTP}
-            </span>
-          )}
         </div>
 
         <form onSubmit={handleSendOtp} className="flex flex-col gap-4">

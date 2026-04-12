@@ -1,20 +1,47 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { users, latestMessages } from "@/data/chatData";
 import { FiSearch, FiMoreVertical, FiPlus, FiX } from "react-icons/fi";
 import { BsCheckAll, BsPinFill } from "react-icons/bs";
 import gsap from "gsap";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import api from "../lib/api";
+import { useAuth } from "../lib/auth";
+import { useSocket } from "../lib/socket";
+import { formatDistanceToNow } from "date-fns";
 
 const MessengersPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { socket } = useSocket();
+  const queryClient = useQueryClient();
   const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+
+  const { data: chats = [], isLoading } = useQuery({
+    queryKey: ["chats"],
+    queryFn: async () => {
+      const res = await api.get("/chats");
+      return res.data;
+    },
+  });
 
   const titleRef = useRef<HTMLHeadingElement>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const moreBtnRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!socket) return;
+    
+    const handleNewMessage = (m: any) => {
+      // Invalidate chats to update latest message and unread counts
+      queryClient.invalidateQueries({ queryKey: ["chats"] });
+    };
+
+    socket.on("message recieved", handleNewMessage);
+    return () => { socket.off("message recieved", handleNewMessage); };
+  }, [socket, queryClient]);
 
   useEffect(() => {
     if (isSearching) {
@@ -91,15 +118,12 @@ const MessengersPage = () => {
     }
   }, [isSearching]);
 
-  const onlineUsers = users.filter((u) => u.online);
-
-  const filteredMessages = latestMessages.filter((msg) => {
+  const filteredChats = chats.filter((chat: any) => {
     if (!searchQuery) return true;
-    const user = users.find((u) => u.id === msg.userId);
-    if (!user) return false;
+    const otherUser = chat.participants.find((p: any) => p._id !== user?._id);
     return (
-      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      msg.text.toLowerCase().includes(searchQuery.toLowerCase())
+      otherUser?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      chat.latestMessage?.text?.toLowerCase().includes(searchQuery.toLowerCase())
     );
   });
 
@@ -187,7 +211,14 @@ const MessengersPage = () => {
 
       {/* Chat List */}
       <div className="flex flex-col pb-6">
-        {filteredMessages.length === 0 && (
+        {isLoading && (
+          <div className="px-5 py-12 text-center flex flex-col items-center gap-2">
+            <span className="animate-spin rounded-full h-8 w-8 border-b-2 border-foreground" />
+            <p className="text-sm font-medium text-muted-foreground">Loading chats...</p>
+          </div>
+        )}
+
+        {!isLoading && filteredChats.length === 0 && (
           <div className="px-5 py-12 text-center flex flex-col items-center gap-2">
             <FiSearch size={32} className="text-muted-foreground/30" />
             <p className="text-sm font-medium text-foreground">
@@ -196,57 +227,39 @@ const MessengersPage = () => {
           </div>
         )}
 
-        {filteredMessages.map((msg) => {
-          const user = users.find((u) => u.id === msg.userId);
-          if (!user) return null;
+        {!isLoading && filteredChats.map((chat: any) => {
+          const otherUser = chat.participants.find((p: any) => p._id !== user?._id);
+          if (!otherUser) return null;
 
-          // Always use the original index from latestMessages so display
-          // logic (pin, unread badge, sender label, ticks) stays correct
-          // regardless of what the search filter returns.
-          const idx = latestMessages.findIndex((m) => m.userId === msg.userId);
-
-          const isPinned = !searchQuery && idx === 0;
-          const unreadCount = isPinned
-            ? 4
-            : msg.unread > 0
-              ? msg.unread
-              : idx === 3
-                ? 2
-                : 0;
-
-          const timeLabel =
-            idx === 0
-              ? "24 mins"
-              : idx < 3
-                ? "2 mins"
-                : idx === 3
-                  ? "12 mins"
-                  : "20 mins";
+          const latestMsg = chat.latestMessage;
+          const isUnread = latestMsg && latestMsg.senderId !== user?._id && !latestMsg.readBy?.includes(user?._id);
+          
+          let timeLabel = "";
+          if (latestMsg && latestMsg.createdAt) {
+            timeLabel = formatDistanceToNow(new Date(latestMsg.createdAt), { addSuffix: true }).replace('about ', '');
+          }
 
           return (
             <button
-              key={msg.userId}
-              onClick={() => navigate(`/chat/${user.id}`)}
+              key={chat._id}
+              onClick={() => navigate(`/chat/${otherUser._id}`)}
               className="w-full flex items-center gap-4 px-5 py-3.5 hover:bg-secondary/50 transition-colors group"
             >
               <div className="relative shrink-0">
                 <img
-                  src={user.avatar}
+                  src={otherUser.avatar || "https://i.pravatar.cc/150"}
                   className="w-[58px] h-[58px] rounded-full object-cover"
-                  alt={user.name}
+                  alt={otherUser.name}
                 />
               </div>
 
               <div className="flex-1 min-w-0 text-left self-center mt-1 pb-1">
                 <div className="flex items-center justify-between mb-1">
                   <p className="font-semibold text-[16px] text-foreground leading-tight truncate pr-2">
-                    {user.name}
+                    {otherUser.name}
                   </p>
                   <span
-                    className={`text-[12px] shrink-0 ${unreadCount > 0
-                      ? "text-foreground"
-                      : "text-muted-foreground"
-                      }`}
+                    className={`text-[12px] shrink-0 ${isUnread ? "text-foreground font-bold" : "text-muted-foreground"}`}
                   >
                     {timeLabel}
                   </span>
@@ -254,45 +267,23 @@ const MessengersPage = () => {
 
                 <div className="flex items-center gap-1.5 justify-between">
                   <div className="flex items-center gap-1.5 truncate flex-1">
-                    {/* Double-tick for sent messages (original indices 1 & 2) */}
-                    {idx > 0 && idx < 3 && (
+                    {latestMsg?.senderId === user?._id && (
                       <BsCheckAll
                         size={20}
-                        className="text-[#4E89F0] shrink-0"
+                        className={latestMsg.readBy?.length > 1 ? "text-[#4E89F0] shrink-0" : "text-muted-foreground shrink-0"}
                       />
                     )}
 
-                    {/* Sender prefix labels */}
-                    {idx === 0 && (
-                      <span className="text-muted-foreground text-sm">
-                        Khai :
-                      </span>
-                    )}
-                    {idx === 4 && (
-                      <span className="text-muted-foreground text-sm">
-                        You :
-                      </span>
-                    )}
-
-                    {/* Always use real message text from data */}
                     <p
-                      className={`text-[14px] truncate ${unreadCount > 0 && idx === 0
-                        ? "text-foreground font-medium"
-                        : "text-muted-foreground"
-                        }`}
+                      className={`text-[14px] truncate ${isUnread ? "text-foreground font-medium" : "text-muted-foreground"}`}
                     >
-                      {msg.text}
+                      {latestMsg ? latestMsg.text : "Say hi!"}
                     </p>
                   </div>
 
                   <div className="flex items-center gap-2.5 shrink-0 pl-2">
-                    {isPinned && (
-                      <BsPinFill size={14} className="text-muted-foreground" />
-                    )}
-                    {unreadCount > 0 && (
-                      <span className="bg-[#24d366] text-white text-[11px] font-bold min-w-[20px] h-[20px] rounded-full flex items-center justify-center px-1">
-                        {unreadCount}
-                      </span>
+                    {isUnread && (
+                      <span className="bg-[#24d366] text-white text-[11px] font-bold min-w-[10px] h-[10px] rounded-full inline-block" />
                     )}
                   </div>
                 </div>

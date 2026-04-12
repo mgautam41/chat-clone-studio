@@ -1,7 +1,8 @@
 import { ArrowLeft, MoreVertical, ChevronRight, Bell, Image as ImageIcon, Bookmark, Lock, AlertTriangle, Trash2, Timer } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { users } from "@/data/chatData";
+import { useQuery } from "@tanstack/react-query";
+import api from "../lib/api";
 
 const mockPhotos = [
   "https://images.unsplash.com/photo-1517487881594-2787fef5ebf7?w=400&h=400&fit=crop",
@@ -13,7 +14,20 @@ const mockPhotos = [
 const ChatUserProfile = () => {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
-  const user = users.find(u => u.id === userId) || users[1];
+  
+  const { data: user, isLoading } = useQuery({
+    queryKey: ["user", userId],
+    queryFn: async () => {
+      const res = await api.get(`/users`);
+      // Finding the specific user from the list since we don't have a get single user by ID endpoint yet in the provided backend snippets, 
+      // but let's assume we can filter or look for it. 
+      // Actually, looking at user.controller.ts, it returns all users. 
+      // Let's refine the logic or stick to fetching all and finding for now if a single endpoint is missing.
+      return res.data.find((u: any) => u._id === userId);
+    },
+    enabled: !!userId
+  });
+
   const [isLocked, setIsLocked] = useState(false);
 
   useEffect(() => {
@@ -50,17 +64,23 @@ const ChatUserProfile = () => {
 
       {/* Profile Image & Name */}
       <div className="flex flex-col items-center mt-2 w-full">
-        <div className="relative">
-          <img
-            src={user.avatar}
-            className="w-[100px] h-[100px] rounded-full object-cover shadow-sm"
-            alt={user.name}
-          />
-          {user.online && (
-            <div className="absolute bottom-1 right-2 w-4 h-4 bg-green-500 rounded-full border-2 border-background" />
-          )}
-        </div>
-        <h2 className="text-xl font-bold text-foreground tracking-wide mt-4">{user.name}</h2>
+        {isLoading ? (
+          <div className="w-[100px] h-[100px] rounded-full bg-secondary animate-pulse" />
+        ) : (
+          <>
+            <div className="relative">
+              <img
+                src={user?.avatar || "https://i.pravatar.cc/150"}
+                className="w-[100px] h-[100px] rounded-full object-cover shadow-sm"
+                alt={user?.name}
+              />
+              {user?.online && (
+                <div className="absolute bottom-1 right-2 w-4 h-4 bg-green-500 rounded-full border-2 border-background" />
+              )}
+            </div>
+            <h2 className="text-xl font-bold text-foreground tracking-wide mt-4">{user?.name || "User"}</h2>
+          </>
+        )}
       </div>
 
       {/* Media and photos */}

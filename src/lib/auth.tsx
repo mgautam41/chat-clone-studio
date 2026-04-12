@@ -1,26 +1,70 @@
+import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { Navigate } from "react-router-dom";
-import type { ReactNode } from "react";
+import api from "./api";
+import { Loader2 } from "lucide-react";
 
-/** Returns the stored fake session or null */
-export function getAuthSession() {
-  try {
-    const raw = localStorage.getItem("chat_auth");
-    return raw ? (JSON.parse(raw) as { name: string; email: string }) : null;
-  } catch {
-    return null;
-  }
+export interface User {
+  _id: string;
+  name: string;
+  email: string;
+  avatar: string;
+  status: string;
 }
 
-/** Redirects to /welcome if there is no session */
+interface AuthContextType {
+  user: User | null;
+  loading: boolean;
+  setUser: (user: User | null) => void;
+}
+
+export const AuthContext = createContext<AuthContextType>({
+  user: null,
+  loading: true,
+  setUser: () => {},
+});
+
+export const useAuth = () => useContext(AuthContext);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.get("/auth/me")
+      .then((res) => {
+        setUser(res.data);
+      })
+      .catch(() => {
+        setUser(null);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, []);
+
+  return (
+    <AuthContext.Provider value={{ user, loading, setUser }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+const LoadingScreen = () => (
+  <div className="flex h-screen w-full items-center justify-center bg-background">
+    <Loader2 className="animate-spin text-muted-foreground" size={32} />
+  </div>
+);
+
 export function RequireAuth({ children }: { children: ReactNode }) {
-  const session = getAuthSession();
-  if (!session) return <Navigate to="/welcome" replace />;
+  const { user, loading } = useAuth();
+  if (loading) return <LoadingScreen />;
+  if (!user) return <Navigate to="/welcome" replace />;
   return <>{children}</>;
 }
 
-/** Redirects logged-in users away from welcome/login */
 export function GuestOnly({ children }: { children: ReactNode }) {
-  const session = getAuthSession();
-  if (session) return <Navigate to="/messengers" replace />;
+  const { user, loading } = useAuth();
+  if (loading) return <LoadingScreen />;
+  if (user) return <Navigate to="/messengers" replace />;
   return <>{children}</>;
 }

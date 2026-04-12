@@ -4,13 +4,13 @@ import {
   Shield, Smartphone, HelpCircle, ChevronRight,
   Settings, Users
 } from "lucide-react";
-import { currentUser, users } from "@/data/chatData";
 import { useNavigate } from "react-router-dom";
-
-const connectedFriends = [users[1], users[3], users[5], users[7]];
+import { useAuth } from "../lib/auth";
+import api from "../lib/api";
 
 const ProfilePage = () => {
   const navigate = useNavigate();
+  const { user, setUser } = useAuth();
   const [dark, setDark] = useState(() =>
     document.documentElement.classList.contains("dark")
   );
@@ -48,17 +48,17 @@ const ProfilePage = () => {
       <div className="px-5 flex items-center gap-4 mt-2">
         <div className="relative shrink-0">
           <img
-            src={currentUser.avatar}
+            src={user?.avatar || "https://i.pravatar.cc/150"}
             className="w-16 h-16 rounded-full object-cover border-2 border-border/30"
-            alt={currentUser.name}
+            alt={user?.name || "User"}
           />
           <div className="absolute bottom-0.5 right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-background" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-[17px] text-foreground leading-tight">{currentUser.name}</p>
+          <p className="font-semibold text-[17px] text-foreground leading-tight">{user?.name || "User"}</p>
           <div className="flex items-center gap-3 mt-1.5">
             <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Mail size={11} /> me@mail.com
+              <Mail size={11} /> {user?.email || "Email hidden"}
             </span>
           </div>
         </div>
@@ -121,9 +121,14 @@ const ProfilePage = () => {
 
       {/* Logout */}
       <button
-        onClick={() => {
-          localStorage.removeItem("chat_auth");
-          navigate("/welcome", { replace: true });
+        onClick={async () => {
+          try {
+            await api.post("/auth/logout");
+            setUser(null);
+            navigate("/welcome", { replace: true });
+          } catch (err) {
+            console.error("Logout failed", err);
+          }
         }}
         className="w-full flex items-center gap-4 px-5 py-2 active:scale-95 transition-transform"
       >

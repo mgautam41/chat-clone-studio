@@ -4,10 +4,11 @@ import { ArrowLeft, Phone, Video, MoreVertical, X } from "lucide-react";
 import { FiPlus, FiCamera, FiSend } from "react-icons/fi";
 import { PiSticker } from "react-icons/pi";
 
-import { users } from "@/data/chatData";
 import { useIsDark } from "@/hooks/useIsDark";
 import { Msg } from "@/types/chat";
-import { FAKE_MESSAGES, TIME_DIVIDERS } from "@/data/mockMessages";
+import api from "../lib/api";
+import { useAuth } from "../lib/auth";
+import { useSocket } from "../lib/socket";
 
 import { Lightbox } from "@/components/chat/Lightbox";
 import { SwipeRow } from "@/components/chat/SwipeRow";
@@ -28,8 +29,12 @@ const ChatPage = () => {
   const blurStyle = { ...pill, backdropFilter: "blur(24px) saturate(180%)", WebkitBackdropFilter: "blur(24px) saturate(180%)" };
 
   const bottomRef = useRef<HTMLDivElement>(null);
+  const { user } = useAuth();
+  const { socket } = useSocket();
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<Msg[]>(FAKE_MESSAGES);
+  const [messages, setMessages] = useState<Msg[]>([]);
+  const [chatUser, setChatUser] = useState<any>(null);
+  const [currentChat, setCurrentChat] = useState<any>(null);
   const [playingVoice, setPlayingVoice] = useState<string | null>(null);
   const [isTyping, setIsTyping] = useState(false);
   const [replyingTo, setReplyingTo] = useState<Msg | null>(null);
@@ -54,7 +59,85 @@ const ChatPage = () => {
     e.target.value = "";
   };
 
-  const chatUser = users.find(u => u.id === userId) || users[1];
+  useEffect(() => {
+    if (!socket || !currentChat?._id) return;
+
+    const joinRoom = () => {
+      socket.emit("join chat", currentChat._id);
+    };
+
+    joinRoom(); // Initial join
+    socket.on("connect", joinRoom); // Re-join on reconnect
+    
+    return () => {
+      socket.off("connect", joinRoom);
+    };
+  }, [socket, currentChat?._id]);
+
+  useEffect(() => {
+    let active = true;
+    const loadChat = async () => {
+      try {
+        const { data: chatData } = await api.post('/chats', { userId });
+        if (!active) return;
+        setCurrentChat(chatData);
+        const otherUser = chatData.participants.find((p: any) => p._id !== user?._id);
+        setChatUser(otherUser);
+        
+        const { data: msgsData } = await api.get(`/messages/${chatData._id}`);
+        if (!active) return;
+        const mappedMsgs: Msg[] = msgsData.map((m: any) => {
+          const sId = m.senderId?._id || m.senderId;
+          return {
+            id: m._id,
+            senderId: sId === user?._id ? "me" : "other",
+            text: m.text,
+            timestamp: new Date(m.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+            status: m.readBy && m.readBy.length > 1 ? "seen" : "delivered",
+            ...(m.mediaUrl ? { images: [m.mediaUrl] } : {})
+          };
+        });
+        setMessages(mappedMsgs);
+      } catch (err) {
+        console.error("Failed to load chat", err);
+      }
+    };
+    if (userId) loadChat();
+    return () => { active = false; };
+  }, [userId, user]);
+
+  useEffect(() => {
+    if (!socket) return;
+    
+    const handleNewMessage = (m: any) => {
+      const incomingChatId = m.chatId?._id || m.chatId;
+      if (currentChat && incomingChatId === currentChat._id) {
+        // Prevent duplicate messages if sender also receives the event
+        setMessages(prev => {
+          if (prev.find(existing => existing.id === m._id)) return prev;
+          const msg: Msg = {
+            id: m._id,
+            senderId: (m.senderId?._id || m.senderId) === user?._id ? "me" : "other",
+            text: m.text,
+            timestamp: new Date(m.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+            status: "delivered",
+            ...(m.mediaUrl ? { images: [m.mediaUrl] } : {})
+          };
+          return [...prev, msg];
+        });
+      }
+    };
+
+    socket.on("message recieved", handleNewMessage);
+    socket.on("typing", () => setIsTyping(true));
+    socket.on("stop typing", () => setIsTyping(false));
+
+    return () => {
+      socket.off("message recieved", handleNewMessage);
+      socket.off("typing");
+      socket.off("stop typing");
+    };
+  }, [socket, currentChat, user]);
 
   /* index of last "seen" outgoing message */
   const lastSeenIdx = (() => {
@@ -71,45 +154,40 @@ const ChatPage = () => {
   const removePending = (i: number) => setPendingImages(prev => prev.filter((_, idx) => idx !== i));
   const openLightbox = (images: string[], index: number) => setLightbox({ images, index });
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     if (!input.trim() && pendingImages.length === 0) return;
+    if (!currentChat) return;
+    const content = input.trim();
+    setInput("");
+    
+    // Optimistic UI
+    const tempId = `m${Date.now()}`;
     const ts = new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-
     const newMsg: Msg = {
-      id: `m${Date.now()}`,
+      id: tempId,
       senderId: "me",
-      text: input.trim() || undefined,
+      text: content || undefined,
       timestamp: ts,
       status: "sent",
       ...(pendingImages.length > 0 ? { images: [...pendingImages] } : {}),
       ...(replyingTo ? { replyTo: { id: replyingTo.id, senderId: replyingTo.senderId, text: replyingTo.text || "Voice message" } } : {}),
     };
-
     setMessages(prev => [...prev, newMsg]);
-    setInput("");
     setPendingImages([]);
     setReplyingTo(null);
 
-    /* status simulation */
-    setTimeout(() => setMessages(prev => prev.map(m =>
-      m.senderId === "me" && m.status === "sent" ? { ...m, status: "delivered" } : m
-    )), 900);
-    setTimeout(() => setMessages(prev => prev.map(m =>
-      m.senderId === "me" && m.status === "delivered" ? { ...m, status: "seen" } : m
-    )), 2400);
-
-    /* auto-reply */
-    setIsTyping(true);
-    setTimeout(() => {
-      setIsTyping(false);
-      const replies = ["Got it! 👍", "Sure, I'll look into that.", "Makes sense!", "On it!", "ASAP, brb!"];
-      setMessages(prev => [...prev, {
-        id: `m${Date.now() + 999}`,
-        senderId: "other",
-        text: replies[Math.floor(Math.random() * replies.length)],
-        timestamp: new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
-      }]);
-    }, 2000);
+    // Actual API Call
+    try {
+      const res = await api.post("/messages", { chatId: currentChat._id, content });
+      if (socket) {
+        socket.emit("new message", res.data);
+      }
+      setMessages(prev => prev.map(m => m.id === tempId ? {
+        ...m, id: res.data._id, status: "delivered"
+      } : m));
+    } catch (err) {
+      console.error("Failed to send msg", err);
+    }
   };
 
   const hasContent = input.trim() || pendingImages.length > 0;
@@ -130,16 +208,16 @@ const ChatPage = () => {
             <ArrowLeft size={22} strokeWidth={1.5} />
           </button>
           <button
-            onClick={() => navigate(`/chat/${chatUser.id}/profile`)}
+            onClick={() => chatUser?._id && navigate(`/chat/${chatUser._id}/profile`)}
             className="flex-1 min-w-0 flex items-center gap-3 text-left hover:opacity-80 transition-opacity"
           >
             <div className="relative shrink-0">
-              <img src={chatUser.avatar} className="w-10 h-10 rounded-full object-cover shadow-sm" alt="" />
-              {chatUser.online && <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-background" />}
+              <img src={chatUser?.avatar || "https://i.pravatar.cc/150"} className="w-10 h-10 rounded-full object-cover shadow-sm" alt="" />
+              {chatUser?.online && <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-background" />}
             </div>
             <div className="flex flex-col flex-1 overflow-hidden leading-tight justify-center mt-0.5">
-              <span className="font-semibold text-foreground text-[15px] truncate">{chatUser.name}</span>
-              <span className="text-[11px] text-muted-foreground truncate opacity-80">Active now</span>
+              <span className="font-semibold text-foreground text-[15px] truncate">{chatUser?.name || "Loading..."}</span>
+              <span className="text-[11px] text-muted-foreground truncate opacity-80">{chatUser?.online ? "Active now" : "Offline"}</span>
             </div>
           </button>
           <div className="flex items-center gap-1 text-muted-foreground">
@@ -157,19 +235,13 @@ const ChatPage = () => {
             const nextMsg = messages[index + 1];
             const showName = !isMe && (!prevMsg || prevMsg.senderId !== msg.senderId);
             const isLastInGroup = !nextMsg || nextMsg.senderId !== msg.senderId;
-            const timeDivider = TIME_DIVIDERS[msg.id];
             const isLastMyMsg = index === lastSeenIdx;
 
             return (
               <div key={msg.id} id={`msg-${msg.id}`}>
-                {timeDivider && (
-                  <div className="flex justify-center my-5">
-                    <span className="text-[11px] font-medium text-muted-foreground/55 tracking-wide">{timeDivider}</span>
-                  </div>
-                )}
                 {showName && (
                   <p className="text-[13px] font-bold text-foreground mb-1.5 mt-2">
-                    {chatUser.name.split(" ")[0]}
+                    {chatUser?.name?.split(" ")[0]}
                   </p>
                 )}
                 <div className={isLastInGroup ? "mb-4" : "mb-1"}>
@@ -206,7 +278,7 @@ const ChatPage = () => {
                 <div className="w-[3px] h-9 bg-foreground/30 rounded-full shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-[11px] font-semibold text-foreground/60 mb-0.5">
-                    Replying to {replyingTo.senderId === "me" ? "yourself" : chatUser.name.split(" ")[0]}
+                    Replying to {replyingTo.senderId === "me" ? "yourself" : (chatUser?.name?.split(" ")[0] || "User")}
                   </p>
                   <p className="text-[12px] text-muted-foreground truncate">
                     {replyingTo.voiceNote ? "🎤 Voice message" : replyingTo.text}
@@ -249,7 +321,20 @@ const ChatPage = () => {
                 </button> */}
                 <input
                   value={input}
-                  onChange={e => setInput(e.target.value)}
+                  onChange={e => {
+                    setInput(e.target.value);
+                    if (socket && currentChat) {
+                      socket.emit("typing", currentChat._id);
+                      let lastTypingTime = new Date().getTime();
+                      const timerLength = 3000;
+                      setTimeout(() => {
+                        const timeNow = new Date().getTime();
+                        if (timeNow - lastTypingTime >= timerLength) {
+                          socket.emit("stop typing", currentChat._id);
+                        }
+                      }, timerLength);
+                    }
+                  }}
                   onKeyDown={e => e.key === "Enter" && sendMessage()}
                   placeholder="Type here"
                   className="flex-1 bg-transparent text-[15px] text-foreground placeholder:text-muted-foreground/70 outline-none px-1"
