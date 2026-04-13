@@ -36,6 +36,7 @@ const App = () => (
         <SocketProvider>
           <HashRouter>
             <Routes>
+            
               {/* Guest-only */}
               <Route path="/welcome" element={<GuestOnly><WelcomePage /></GuestOnly>} />
               <Route path="/login" element={<GuestOnly><LoginPage /></GuestOnly>} />
