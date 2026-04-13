@@ -10,8 +10,9 @@ import api from "../lib/api";
 
 const ProfilePage = () => {
   const navigate = useNavigate();
-  const { user, setUser } = useAuth();
+  const { user, setUser, logout } = useAuth();
   const [dark, setDark] = useState(() =>
+
     document.documentElement.classList.contains("dark")
   );
 
@@ -122,16 +123,12 @@ const ProfilePage = () => {
       {/* Logout */}
       <button
         onClick={async () => {
-          try {
-            await api.post("/auth/logout");
-            setUser(null);
-            navigate("/welcome", { replace: true });
-          } catch (err) {
-            console.error("Logout failed", err);
-          }
+          await logout();
+          navigate("/welcome", { replace: true });
         }}
         className="w-full flex items-center gap-4 px-5 py-2 active:scale-95 transition-transform"
       >
+
         <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center shrink-0">
           <LogOut size={18} strokeWidth={1.8} className="text-red-500" />
         </div>

@@ -2,7 +2,8 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from './auth';
 
-const SOCKET_URL = 'http://localhost:5000';
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://3.110.213.225:5000';
+
 
 interface SocketContextType {
     socket: Socket | null;
@@ -21,8 +22,10 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     useEffect(() => {
         if (user) {
             const newSocket = io(SOCKET_URL, {
+                auth: { token: localStorage.getItem('token') },
                 withCredentials: true,
             });
+
 
             newSocket.on('connect', () => {
                 console.log('Socket connected');

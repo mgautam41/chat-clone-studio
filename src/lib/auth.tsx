@@ -15,13 +15,16 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   setUser: (user: User | null) => void;
+  logout: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
   setUser: () => {},
+  logout: async () => {},
 });
+
 
 export const useAuth = () => useContext(AuthContext);
 
@@ -32,6 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     api.get("/auth/me")
       .then((res) => {
+        // Interceptor already unwrapped res.data.data into res.data
         setUser(res.data);
       })
       .catch(() => {
@@ -42,11 +46,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
   }, []);
 
+  const logout = async () => {
+    try {
+      await api.post("/auth/logout");
+    } finally {
+      setUser(null);
+      localStorage.removeItem('token');
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, setUser }}>
+    <AuthContext.Provider value={{ user, loading, setUser, logout }}>
       {children}
     </AuthContext.Provider>
   );
+
 }
 
 const LoadingScreen = () => (
