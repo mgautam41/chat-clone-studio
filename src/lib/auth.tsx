@@ -33,26 +33,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get("/auth/me")
-      .then((res) => {
-        // Interceptor already unwrapped res.data.data into res.data
-        setUser(res.data);
-      })
-      .catch(() => {
-        setUser(null);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+    const stored = localStorage.getItem("fakeUser");
+    if (stored) {
+      try { setUser(JSON.parse(stored)); } catch {}
+    }
+    setLoading(false);
   }, []);
 
   const logout = async () => {
-    try {
-      await api.post("/auth/logout");
-    } finally {
-      setUser(null);
-      localStorage.removeItem('token');
-    }
+    setUser(null);
+    localStorage.removeItem('fakeUser');
+    localStorage.removeItem('token');
   };
 
   return (
