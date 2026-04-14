@@ -64,14 +64,10 @@ export default function LoginPage() {
     if (!name.trim() || !email.trim()) return;
     setLoading(true);
     setError("");
-    try {
-      await api.post("/auth/request-otp", { name, email });
-      setStage("otp");
-    } catch (err: any) {
-      setError(err.response?.data?.error || "Failed to send OTP");
-    } finally {
-      setLoading(false);
-    }
+    // Simulate OTP send
+    await new Promise(r => setTimeout(r, 800));
+    setStage("otp");
+    setLoading(false);
   };
 
   const handleOtpChange = (index: number, value: string) => {
@@ -105,18 +101,21 @@ export default function LoginPage() {
   const verifyOtp = async (code: string) => {
     setLoading(true);
     setError("");
-    try {
-      const res = await api.post("/auth/verify-otp", { email, otp: code });
-      setSuccess(true);
-      setUser(res.data);
-      setTimeout(() => navigate("/messengers", { replace: true }), 900);
-    } catch (err: any) {
-      setError(err.response?.data?.error || "Incorrect OTP. Please try again.");
+    // Simulate verification
+    await new Promise(r => setTimeout(r, 600));
+    if (code === "000000") {
+      setError("Incorrect OTP. Please try again.");
       setOtp(["", "", "", "", "", ""]);
       inputRefs.current[0]?.focus();
-    } finally {
       setLoading(false);
+      return;
     }
+    setSuccess(true);
+    const fakeUser = { _id: "me1", name: name.trim(), email: email.trim(), avatar: "https://i.pravatar.cc/150?img=3", status: "Hey there!" };
+    localStorage.setItem("fakeUser", JSON.stringify(fakeUser));
+    setUser(fakeUser);
+    setTimeout(() => navigate("/messengers", { replace: true }), 900);
+    setLoading(false);
   };
 
   const isFormValid = name.trim().length > 1 && /\S+@\S+\.\S+/.test(email);
