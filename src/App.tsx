@@ -11,6 +11,7 @@ import SearchPage from "./pages/SearchPage";
 import ActivityPage from "./pages/ActivityPage";
 import ProfilePage from "./pages/ProfilePage";
 import ChatUserProfile from "./pages/ChatUserProfile";
+import UserProfilePage from "./pages/UserProfilePage";
 import BottomNav from "./components/BottomNav";
 import NotFound from "./pages/NotFound";
 import WelcomePage from "./pages/WelcomePage";
@@ -36,7 +37,6 @@ const App = () => (
         <SocketProvider>
           <HashRouter>
             <Routes>
-            
               {/* Guest-only */}
               <Route path="/welcome" element={<GuestOnly><WelcomePage /></GuestOnly>} />
               <Route path="/login" element={<GuestOnly><LoginPage /></GuestOnly>} />
@@ -48,6 +48,7 @@ const App = () => (
               <Route path="/messengers" element={<RequireAuth><MessengersPage /></RequireAuth>} />
               <Route path="/chat/:userId" element={<RequireAuth><ChatPage /></RequireAuth>} />
               <Route path="/chat/:userId/profile" element={<RequireAuth><ChatUserProfile /></RequireAuth>} />
+              <Route path="/user/:userId" element={<RequireAuth><UserProfilePage /></RequireAuth>} />
               <Route path="/search" element={<RequireAuth><SearchPage /></RequireAuth>} />
               <Route path="/activity" element={<RequireAuth><ActivityPage /></RequireAuth>} />
               <Route path="/profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
